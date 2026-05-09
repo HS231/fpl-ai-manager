@@ -301,6 +301,9 @@ def build_squad(players: list, formation: str = "4-4-2") -> dict:
     parts  = formation.split("-")
     n_def, n_mid, n_fwd = int(parts[0]), int(parts[1]), int(parts[2])
 
+    # FPL squad rules — hard limits per position across ALL 15 players
+    POS_LIMITS = {"GK": 2, "DEF": 5, "MID": 5, "FWD": 3}
+
     # Position pools sorted by xpts descending
     by_pos = {
         pos: sorted([p for p in players if p["pos"] == pos],
@@ -326,7 +329,13 @@ def build_squad(players: list, formation: str = "4-4-2") -> dict:
     # ── PASS 1: Pick the XI (leave ~20m for bench) ──
     XI_BUDGET = 80.0   # soft cap — ensures bench budget exists
 
-    def pick_xi_pos(pool, needed):
+    # Track how many of each position we've picked across full 15
+    pos_count = {"GK": 0, "DEF": 0, "MID": 0, "FWD": 0}
+
+    def can_pick_pos(p):
+        return pos_count[p["pos"]] < POS_LIMITS[p["pos"]]
+
+    def pick_pos(pool, needed, budget_cap):
         nonlocal spent
         picks = []
         for p in pool:
@@ -334,57 +343,71 @@ def build_squad(players: list, formation: str = "4-4-2") -> dict:
                 break
             if team_count.get(p["team_id"], 0) >= 3:
                 continue
-            if spent + p["price"] > XI_BUDGET:
+            if not can_pick_pos(p):
+                continue
+            if spent + p["price"] > budget_cap:
                 continue
             picks.append(p)
-            pick(p)
+            team_count[p["team_id"]] = team_count.get(p["team_id"], 0) + 1
+            pos_count[p["pos"]] += 1
+            spent += p["price"]
         return picks
 
-    xi_gk  = pick_xi_pos(by_pos["GK"],  1)
-    xi_def = pick_xi_pos(by_pos["DEF"], n_def)
-    xi_mid = pick_xi_pos(by_pos["MID"], n_mid)
-    xi_fwd = pick_xi_pos(by_pos["FWD"], n_fwd)
+    # ── PASS 1: Pick XI ──
+    xi_gk  = pick_pos(by_pos["GK"],  1,      XI_BUDGET)
+    xi_def = pick_pos(by_pos["DEF"], n_def,  XI_BUDGET)
+    xi_mid = pick_pos(by_pos["MID"], n_mid,  XI_BUDGET)
+    xi_fwd = pick_pos(by_pos["FWD"], n_fwd,  XI_BUDGET)
 
-    # If XI_BUDGET was too tight, relax and fill gaps
+    # Relax budget cap if XI isn't full
     for pos_name, pool, needed in [
         ("GK", by_pos["GK"], 1), ("DEF", by_pos["DEF"], n_def),
         ("MID", by_pos["MID"], n_mid), ("FWD", by_pos["FWD"], n_fwd)
     ]:
         existing = {"GK": xi_gk,"DEF": xi_def,"MID": xi_mid,"FWD": xi_fwd}[pos_name]
         used = {p["id"] for p in xi_gk+xi_def+xi_mid+xi_fwd}
-        while len(existing) < needed:
-            for p in pool:
-                if p["id"] in used:
-                    continue
-                if team_count.get(p["team_id"], 0) >= 3:
-                    continue
-                if spent + p["price"] > BUDGET:
-                    continue
-                existing.append(p)
-                pick(p)
-                used.add(p["id"])
+        for p in pool:
+            if len(existing) >= needed:
                 break
-            else:
-                break
+            if p["id"] in used:
+                continue
+            if team_count.get(p["team_id"], 0) >= 3:
+                continue
+            if not can_pick_pos(p):
+                continue
+            if spent + p["price"] > BUDGET:
+                continue
+            existing.append(p)
+            team_count[p["team_id"]] = team_count.get(p["team_id"], 0) + 1
+            pos_count[p["pos"]] += 1
+            spent += p["price"]
+            used.add(p["id"])
 
     xi       = xi_gk + xi_def + xi_mid + xi_fwd
     used_ids = {p["id"] for p in xi}
 
-    # ── PASS 2: Bench — cheapest viable players ──
-    # Bench GK: cheapest GK not in XI
+    # ── PASS 2: Bench — must respect position limits ──
+    # 1 GK on bench
     bench_gk_pool = sorted(
         [p for p in by_pos["GK"] if p["id"] not in used_ids],
         key=lambda x: x["price"]
     )
     bench_gk = []
     for p in bench_gk_pool:
-        if can_pick(p):
-            bench_gk.append(p)
-            pick(p)
-            used_ids.add(p["id"])
-            break
+        if pos_count[p["pos"]] >= POS_LIMITS[p["pos"]]:
+            continue
+        if team_count.get(p["team_id"], 0) >= 3:
+            continue
+        if spent + p["price"] > BUDGET:
+            continue
+        bench_gk.append(p)
+        team_count[p["team_id"]] = team_count.get(p["team_id"], 0) + 1
+        pos_count[p["pos"]] += 1
+        spent += p["price"]
+        used_ids.add(p["id"])
+        break
 
-    # Bench outfield: 3 cheapest available players sorted by price
+    # 3 outfield bench players — cheapest, respecting position limits
     bench_out_pool = sorted(
         [p for pos_name in ("DEF","MID","FWD")
            for p in by_pos[pos_name] if p["id"] not in used_ids],
@@ -394,14 +417,21 @@ def build_squad(players: list, formation: str = "4-4-2") -> dict:
     for p in bench_out_pool:
         if len(bench_out) >= 3:
             break
-        if can_pick(p):
-            bench_out.append(p)
-            pick(p)
-            used_ids.add(p["id"])
+        if pos_count[p["pos"]] >= POS_LIMITS[p["pos"]]:
+            continue
+        if team_count.get(p["team_id"], 0) >= 3:
+            continue
+        if spent + p["price"] > BUDGET:
+            continue
+        bench_out.append(p)
+        team_count[p["team_id"]] = team_count.get(p["team_id"], 0) + 1
+        pos_count[p["pos"]] += 1
+        spent += p["price"]
+        used_ids.add(p["id"])
 
     bench = bench_gk + bench_out
 
-    # ── Final safety net ──
+    # ── Safety net — fill any missing bench spots ──
     if len(bench) < 4:
         all_pool = sorted(
             [p for pos_name in ("GK","DEF","MID","FWD")
@@ -411,9 +441,11 @@ def build_squad(players: list, formation: str = "4-4-2") -> dict:
         for p in all_pool:
             if len(bench) >= 4:
                 break
-            # Relax team constraint for safety net only
+            if pos_count[p["pos"]] >= POS_LIMITS[p["pos"]]:
+                continue
             if spent + p["price"] <= BUDGET:
                 bench.append(p)
+                pos_count[p["pos"]] += 1
                 spent += p["price"]
                 used_ids.add(p["id"])
 
