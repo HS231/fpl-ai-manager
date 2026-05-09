@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FPL AI Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#05080d;--bg2:#0a0f16;--bg3:#0f1820;--bg4:#141e28;--green:#00e676;--green2:#00c853;--blue:#448aff;--amber:#ffab40;--red:#ff5252;--purple:#e040fb;--text:#eceff1;--muted:#546e7a;--border:rgba(255,255,255,0.06);--border2:rgba(0,230,118,0.2);--mono:'DM Mono',monospace;--display:'Bebas Neue',sans-serif;--body:'DM Sans',sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 60% 40% at 15% 15%,rgba(0,230,118,0.03) 0%,transparent 60%),radial-gradient(ellipse 40% 50% at 85% 80%,rgba(68,138,255,0.03) 0%,transparent 60%);}
+.wrap{max-width:1280px;margin:0 auto;padding:0 28px 80px;position:relative;z-index:1;}
+nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0 36px;border-bottom:1px solid var(--border);margin-bottom:44px;}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand-icon{width:38px;height:38px;background:var(--green);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:500;color:#000;}
+.brand-name{font-family:var(--display);font-size:24px;letter-spacing:3px;}
+.brand-sub{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
+.nav-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);color:var(--muted);}
+.chip.live{border-color:var(--border2);color:var(--green);background:rgba(0,230,118,0.06);}
+.hero{text-align:center;padding:10px 0 44px;}
+.hero-eye{font-family:var(--mono);font-size:11px;color:var(--green);letter-spacing:3px;margin-bottom:14px;}
+.hero-title{font-family:var(--display);font-size:clamp(52px,7vw,88px);letter-spacing:4px;line-height:0.95;margin-bottom:18px;}
+.hero-title span{color:var(--green);}
+.hero-sub{font-size:14px;color:var(--muted);max-width:480px;margin:0 auto 32px;line-height:1.6;}
+.config-row{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:28px;flex-wrap:wrap;}
+.config-label{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;}
+.seg{background:var(--bg2);border:1px solid var(--border);color:var(--muted);padding:6px 15px;border-radius:6px;font-family:var(--mono);font-size:11px;cursor:pointer;transition:all 0.15s;}
+.seg.on{background:rgba(0,230,118,0.08);border-color:var(--border2);color:var(--green);}
+.run-btn{display:inline-flex;align-items:center;gap:10px;background:var(--green);color:#000;border:none;border-radius:10px;padding:14px 36px;font-family:var(--mono);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;letter-spacing:1px;}
+.run-btn:hover{background:var(--green2);transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,230,118,0.3);}
+.run-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
+.spin{width:14px;height:14px;border:2px solid rgba(0,0,0,0.25);border-top-color:#000;border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#log-wrap{display:none;margin-bottom:28px;}
+.log-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;font-family:var(--mono);font-size:12px;max-height:180px;overflow-y:auto;}
+.ll{padding:3px 0;color:var(--muted);display:flex;gap:10px;}
+.ll.ok{color:var(--green);} .ll.err{color:var(--red);}
+.lp{color:var(--green);flex-shrink:0;width:14px;}
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:32px;}
+@media(max-width:720px){.stat-row{grid-template-columns:repeat(2,1fr);}}
+.sc{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;transition:border-color 0.2s;}
+.sc::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--green);opacity:0.4;}
+.sc:hover{border-color:var(--border2);}
+.sl{font-size:9px;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
+.sv{font-size:30px;font-weight:800;letter-spacing:-1px;color:var(--green);font-family:var(--display);}
+.ss{font-size:10px;color:var(--muted);margin-top:4px;font-family:var(--mono);}
+#results{display:none;}
+.main-grid{display:grid;grid-template-columns:1fr 420px;gap:22px;align-items:start;}
+@media(max-width:960px){.main-grid{grid-template-columns:1fr;}}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--border);}
+.card-title{font-family:var(--display);font-size:18px;letter-spacing:2px;}
+.card-meta{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.pitch{background:linear-gradient(180deg,#0a200f 0%,#0c2812 50%,#0a200f 100%);padding:28px 20px;position:relative;}
+.pitch::before{content:'';position:absolute;inset:14px;border:1px solid rgba(255,255,255,0.04);border-radius:4px;pointer-events:none;}
+.prow{display:flex;justify-content:center;gap:10px;margin-bottom:18px;}
+.prow:last-child{margin-bottom:0;}
+.pchip{display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform 0.15s;}
+.pchip:hover{transform:translateY(-3px);}
+.pshirt{width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:500;position:relative;border:1px solid rgba(255,255,255,0.1);}
+.pshirt.cap::after{content:'C';position:absolute;top:-5px;right:-5px;width:15px;height:15px;background:var(--amber);border-radius:50%;font-size:8px;color:#000;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.pshirt.vc::after{content:'V';position:absolute;top:-5px;right:-5px;width:15px;height:15px;background:var(--purple);border-radius:50%;font-size:8px;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.s-GK{background:rgba(255,171,64,0.18);color:var(--amber);}
+.s-DEF{background:rgba(0,230,118,0.14);color:var(--green);}
+.s-MID{background:rgba(68,138,255,0.14);color:var(--blue);}
+.s-FWD{background:rgba(255,82,82,0.14);color:var(--red);}
+.pname{font-size:9px;font-family:var(--mono);color:var(--text);text-align:center;max-width:54px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pprice{font-size:9px;font-family:var(--mono);color:var(--green);}
+.bench-wrap{border-top:1px dashed rgba(255,255,255,0.07);padding:14px 20px;}
+.bench-lbl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-align:center;margin-bottom:10px;}
+.bench-row{display:flex;justify-content:center;gap:16px;}
+.panel-stack{display:flex;flex-direction:column;gap:16px;}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.ph{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.pt{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;}
+.pb{padding:16px 18px;}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.ms-l{font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.ms-v{font-family:var(--display);font-size:28px;letter-spacing:1px;color:var(--green);}
+.ms-v.sm{font-size:18px;}
+.ms-s{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px;}
+.cbar{width:100%;height:3px;background:var(--bg3);border-radius:2px;margin-top:4px;}
+.cbar-fill{height:100%;border-radius:2px;background:var(--green);transition:width 0.4s;}
+.briefing{font-size:13px;line-height:1.75;color:#90a4ae;white-space:pre-wrap;word-break:break-word;}
+.pl-list{display:flex;flex-direction:column;gap:5px;}
+.pl-row{display:grid;grid-template-columns:22px 1fr 52px 44px 52px;align-items:center;gap:8px;padding:9px 10px;border-radius:7px;background:var(--bg3);font-size:12px;transition:background 0.1s;}
+.pl-row:hover{background:var(--bg4);}
+.pp{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:8px;font-weight:500;}
+.pn{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;}
+.pt2{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:1px;}
+.cr{font-family:var(--mono);font-size:11px;text-align:right;color:var(--muted);}
+.cr.hi{color:var(--text);}
+.mom{font-family:var(--mono);font-size:10px;text-align:right;}
+.mom.up{color:var(--green);} .mom.dn{color:var(--red);} .mom.fl{color:var(--muted);}
+.fdr{display:inline-flex;align-items:center;justify-content:center;width:22px;height:18px;border-radius:4px;font-family:var(--mono);font-size:10px;font-weight:500;}
+.fdr.e{background:rgba(0,230,118,0.15);color:var(--green);}
+.fdr.m{background:rgba(255,171,64,0.15);color:var(--amber);}
+.fdr.h{background:rgba(255,82,82,0.15);color:var(--red);}
+.sec-head{display:flex;align-items:center;gap:10px;font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin:32px 0 16px;}
+.sec-head::after{content:'';flex:1;height:1px;background:var(--border);}
+#err{display:none;background:rgba(255,82,82,0.06);border:1px solid rgba(255,82,82,0.2);border-radius:12px;padding:24px;font-family:var(--mono);font-size:13px;color:var(--red);margin:24px 0;}
+.help{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-top:14px;font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.9;}
+.help code{color:var(--green);}
+footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+.tab-row{display:flex;gap:8px;justify-content:center;margin-bottom:28px;}
+.tab{background:var(--bg2);border:1px solid var(--border);color:var(--muted);padding:9px 24px;border-radius:8px;font-family:var(--mono);font-size:12px;cursor:pointer;transition:all 0.15s;letter-spacing:0.5px;}
+.tab.on{background:rgba(0,230,118,0.08);border-color:var(--border2);color:var(--green);}
+.tp-wrap{max-width:1100px;}
+.tp-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.ft-btn{background:var(--bg3);border:1px solid var(--border);color:var(--muted);padding:7px 16px;border-radius:6px;font-family:var(--mono);font-size:11px;cursor:pointer;transition:all 0.15s;}
+.ft-btn.on{background:rgba(0,230,118,0.08);border-color:var(--border2);color:var(--green);}
+.tr-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:10px;display:grid;grid-template-columns:1fr 40px 1fr 100px;align-items:center;gap:16px;transition:border-color 0.15s;}
+.tr-card:hover{border-color:var(--border2);}
+.tr-card.hit{border-color:rgba(255,171,64,0.3);}
+.tr-card.worthy{border-color:rgba(0,230,118,0.3);}
+.tr-player{display:flex;flex-direction:column;gap:3px;}
+.tr-name{font-weight:600;font-size:14px;}
+.tr-meta{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.tr-arrow{font-size:20px;text-align:center;color:var(--muted);}
+.tr-gain{text-align:right;}
+.tr-gain-val{font-family:var(--display);font-size:24px;letter-spacing:1px;}
+.tr-gain-val.pos{color:var(--green);}
+.tr-gain-val.neg{color:var(--red);}
+.tr-gain-sub{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px;}
+.tr-hit-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:10px;margin-top:4px;}
+.tr-hit-badge.yes{background:rgba(255,171,64,0.15);color:var(--amber);}
+.tr-hit-badge.no{background:rgba(0,230,118,0.1);color:var(--green);}
+.sr-item{padding:8px 12px;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--text);display:flex;justify-content:space-between;gap:8px;transition:background 0.1s;}
+.sr-item:hover{background:var(--bg4);}
+.sr-item .sr-pos{color:var(--muted);flex-shrink:0;}
+.picked-row{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-radius:6px;background:var(--bg2);font-size:12px;}
+.picked-row:hover{background:var(--bg4);}
+.picked-name{font-weight:500;}
+.picked-meta{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.picked-remove{cursor:pointer;color:var(--red);font-family:var(--mono);font-size:11px;padding:0 4px;opacity:0.7;}
+.picked-remove:hover{opacity:1;}
+footer span{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.ref-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:7px;font-family:var(--mono);font-size:11px;cursor:pointer;transition:all 0.15s;}
+.ref-btn:hover{border-color:var(--border2);color:var(--green);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <div class="brand">
+      <div class="brand-icon">AI</div>
+      <div>
+        <div class="brand-name">FPL AI MANAGER</div>
+        <div class="brand-sub">AUTONOMOUS SQUAD BUILDER · PHASE 2</div>
+      </div>
+    </div>
+    <div class="nav-chips">
+      <div class="chip" id="gw-chip">GW —</div>
+      <div class="chip" id="status-chip">OFFLINE</div>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-eye">↯ AI-POWERED SQUAD SELECTION</div>
+    <div class="hero-title">BUILD THE<br><span>OPTIMAL</span><br>SQUAD</div>
+    <div class="hero-sub">Deep GW history · momentum · consistency · xPts model · Claude AI briefing</div>
+    <!-- Tab switcher -->
+    <div class="tab-row">
+      <button class="tab on" onclick="switchTab('squad',this)">↯ Squad Builder</button>
+      <button class="tab" onclick="switchTab('transfers',this)">⇄ Transfer Planner</button>
+    </div>
+
+    <div id="tab-squad">
+    <div class="config-row">
+      <span class="config-label">FORMATION:</span>
+      <button class="seg on" onclick="setF(this,'4-4-2')">4-4-2</button>
+      <button class="seg" onclick="setF(this,'4-3-3')">4-3-3</button>
+      <button class="seg" onclick="setF(this,'3-5-2')">3-5-2</button>
+      <button class="seg" onclick="setF(this,'3-4-3')">3-4-3</button>
+      <button class="seg" onclick="setF(this,'5-3-2')">5-3-2</button>
+    </div>
+    <button class="run-btn" id="run-btn" onclick="run()">
+      <span id="btn-txt">↯ GENERATE OPTIMAL SQUAD</span>
+    </button>
+  </div>
+
+  <div id="log-wrap"><div class="log-box" id="log-box"></div></div>
+
+  <div id="err">
+    <div id="err-msg"></div>
+    <div class="help">
+      Make sure the backend is running. Open a new Command Prompt window and run:<br>
+      <code>cd Downloads</code><br>
+      <code>python -m pip install flask flask-cors requests</code><br>
+      <code>python fpl_server.py</code><br>
+      Keep that window open, then click Generate again.
+    </div>
+  </div>
+
+  <div id="results">
+    <div class="stat-row">
+      <div class="sc"><div class="sl">Squad Value</div><div class="sv" id="s-val">—</div><div class="ss" id="s-bank">—</div></div>
+      <div class="sc"><div class="sl">Avg xPts (XI)</div><div class="sv" id="s-xpts">—</div><div class="ss">per gameweek (avg)</div></div>
+      <div class="sc"><div class="sl">Captain</div><div class="sv" id="s-cap" style="font-size:18px;padding-top:4px">—</div><div class="ss" id="s-cap-sub">—</div></div>
+      <div class="sc"><div class="sl">Gameweek</div><div class="sv" id="s-gw">—</div><div class="ss" id="s-deadline">—</div></div>
+    </div>
+
+    <div class="main-grid">
+      <div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">STARTING XI</div><div class="card-meta" id="pitch-meta">—</div></div>
+          <div class="pitch" id="pitch"></div>
+          <div class="bench-wrap"><div class="bench-lbl">BENCH</div><div class="bench-row" id="bench"></div></div>
+        </div>
+        <div class="sec-head">Top 20 players — by expected points</div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title" style="font-size:13px;font-family:var(--mono);letter-spacing:1px">PLAYER RANKINGS</div>
+            <div class="card-meta">xPts · Momentum · FDR avg</div>
+          </div>
+          <div style="padding:12px"><div id="rankings"></div></div>
+        </div>
+      </div>
+
+      <div class="panel-stack">
+        <div class="panel">
+          <div class="ph"><div class="pt">Squad stats</div></div>
+          <div class="pb">
+            <div class="sg">
+              <div><div class="ms-l">Formation</div><div class="ms-v sm" id="p-f">—</div></div>
+              <div><div class="ms-l">Avg form</div><div class="ms-v" id="p-form">—</div></div>
+              <div><div class="ms-l">Avg FDR</div><div class="ms-v" id="p-fdr">—</div></div>
+              <div><div class="ms-l">Consistency</div><div class="ms-v" id="p-cons">—</div><div class="cbar"><div class="cbar-fill" id="cons-bar" style="width:0%"></div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="pt">AI Manager Briefing</div><div style="font-family:var(--mono);font-size:9px;color:var(--green)">CLAUDE</div></div>
+          <div class="pb"><div class="briefing" id="briefing">—</div></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="pt">Full squad</div></div>
+          <div class="pb"><div class="pl-list" id="squad-list"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    </div><!-- end tab-squad -->
+
+  <!-- ── TRANSFER PLANNER TAB ── -->
+  <div id="tab-transfers" style="display:none">
+    <div class="tp-wrap">
+
+      <div class="tp-inputs card" style="padding:24px;margin-bottom:20px">
+        <div class="card-head" style="padding:0 0 16px;border-bottom:1px solid var(--border);margin-bottom:20px">
+          <div class="card-title" style="font-size:16px">YOUR CURRENT SQUAD</div>
+          <div class="card-meta">Enter your 15 players · one per line</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+          <div>
+            <div class="tp-label" style="margin-bottom:8px">Current squad (<span id="pick-count">0</span>/15 players)</div>
+            <div style="position:relative;margin-bottom:8px">
+              <input id="player-search" placeholder="Search and add players..." autocomplete="off"
+                style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none"
+                oninput="searchPlayers(this.value)">
+              <div id="search-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;margin-top:4px"></div>
+            </div>
+            <div id="picked-players" style="display:flex;flex-direction:column;gap:4px;min-height:160px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px"></div>
+            <textarea id="squad-input" style="display:none"></textarea>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div>
+              <div class="tp-label">Free transfers</div>
+              <div style="display:flex;gap:8px;margin-top:6px">
+                <button class="ft-btn on" onclick="setFT(this,1)">1 FT</button>
+                <button class="ft-btn" onclick="setFT(this,2)">2 FT</button>
+                <button class="ft-btn" onclick="setFT(this,0)">Hit (-4)</button>
+              </div>
+            </div>
+            <div>
+              <div class="tp-label">Bank (£m)</div>
+              <input id="bank-input" type="number" step="0.1" min="0" max="20" value="0.0"
+                style="width:100%;margin-top:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:13px;color:var(--green);outline:none">
+            </div>
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7">
+              <span style="color:var(--green)">Tip:</span> Use players web names exactly as they appear in FPL. e.g. "Haaland", "B.Fernandes", "Gibbs-White"
+            </div>
+            <button class="run-btn" onclick="clearPicks()" style="width:100%;justify-content:center;background:var(--bg3);border:1px solid var(--border);color:var(--muted);margin-bottom:10px;font-size:11px">
+              ✕ CLEAR ALL
+            </button>
+            <button class="run-btn" id="tp-btn" onclick="runTransfers()" style="width:100%;justify-content:center">
+              <span id="tp-btn-txt">⇄ ANALYSE TRANSFERS</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tp-results" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start">
+          <div>
+            <div class="sec-head">Recommended transfers — ranked by net gain</div>
+            <div id="transfer-list"></div>
+          </div>
+          <div>
+            <div class="panel">
+              <div class="ph">
+                <div class="pt">AI Transfer Briefing</div>
+                <div style="font-family:var(--mono);font-size:9px;color:var(--green)">CLAUDE</div>
+              </div>
+              <div class="pb">
+                <div class="briefing" id="tp-briefing">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tp-error" style="display:none;background:rgba(255,82,82,0.06);border:1px solid rgba(255,82,82,0.2);border-radius:12px;padding:20px;font-family:var(--mono);font-size:13px;color:var(--red);margin-top:16px"></div>
+    </div>
+  </div>
+
+  <footer>
+    <span id="gen-time">—</span>
+    <button class="ref-btn" onclick="run()">↻ Regenerate</button>
+  </footer>
+</div>
+
+<script>
+const API = 'http://localhost:5000';
+let formation = '4-4-2';
+
+function setF(btn,f){document.querySelectorAll('.seg').forEach(b=>b.classList.remove('on'));btn.classList.add('on');formation=f;}
+
+function log(msg,type=''){
+  const box=document.getElementById('log-box');
+  const d=document.createElement('div');
+  d.className='ll '+type;
+  d.innerHTML=`<span class="lp">${{ok:'✓',err:'✗','':'▸'}[type]||'▸'}</span><span>${msg}</span>`;
+  box.appendChild(d);box.scrollTop=box.scrollHeight;
+}
+
+function fdrC(d){return d<=2?'e':d===3?'m':'h';}
+function momC(m){return m>0.5?'up':m<-0.5?'dn':'fl';}
+function momS(m){return m>0?'+'+m.toFixed(1):m.toFixed(1);}
+
+function chip(p,isC,isV,sm=false){
+  return `<div class="pchip"><div class="pshirt s-${p.pos}${isC?' cap':''}${isV?' vc':''}" style="${sm?'width:38px;height:38px':''}">${p.pos}</div><div class="pname">${p.name}</div><div class="pprice">£${p.price}m</div></div>`;
+}
+
+function plRow(p,extra=''){
+  const m=p.momentum||0,fdr=p.fdr_avg3||3;
+  return `<div class="pl-row"><div class="pp s-${p.pos}" style="background:var(--bg4)">${p.pos}</div><div><div class="pn">${p.name}</div><div class="pt2">${p.team}</div></div><div class="cr hi">${extra||('£'+p.price+'m')}</div><div class="mom ${momC(m)}">${momS(m)}</div><div class="cr"><span class="fdr ${fdrC(fdr)}">${fdr}</span></div></div>`;
+}
+
+function render(data){
+  const{squad,briefing,gameweek,deadline,top_players,generated_at}=data;
+  const{xi,bench,captain,vice_captain,total_value,bank,formation:f}=squad;
+
+  document.getElementById('gw-chip').textContent=`GW ${gameweek}`;
+  document.getElementById('status-chip').textContent='LIVE';
+  document.getElementById('status-chip').classList.add('live');
+  document.getElementById('s-val').textContent=`£${total_value}m`;
+  document.getElementById('s-bank').textContent=`in bank: £${bank}m`;
+  document.getElementById('s-gw').textContent=gameweek;
+  document.getElementById('s-cap').textContent=captain.name;
+  document.getElementById('s-cap-sub').textContent=`${captain.team} · xPts ${captain.xpts}`;
+  const xptsTotal=(xi.reduce((s,p)=>s+p.xpts,0)/xi.length);
+  const xptsPerGW=(xptsTotal/Math.max(1,data.squad.formation?3:3)).toFixed(1);
+  document.getElementById('s-xpts').textContent=(xptsTotal/3).toFixed(1);
+  document.getElementById('pitch-meta').textContent=`${f} · GW${gameweek}`;
+  if(deadline){const d=new Date(deadline);document.getElementById('s-deadline').textContent='deadline: '+d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}
+
+  const gk=xi.filter(p=>p.pos==='GK'),def=xi.filter(p=>p.pos==='DEF'),mid=xi.filter(p=>p.pos==='MID'),fwd=xi.filter(p=>p.pos==='FWD');
+  const row=ps=>`<div class="prow">${ps.map(p=>chip(p,p.id===captain.id,p.id===vice_captain.id)).join('')}</div>`;
+  document.getElementById('pitch').innerHTML=row(gk)+row(def)+row(mid)+row(fwd);
+  document.getElementById('bench').innerHTML=bench.map(p=>chip(p,false,false,true)).join('');
+
+  const avgForm=(xi.reduce((s,p)=>s+p.form,0)/xi.length).toFixed(1);
+  const avgFdr=(xi.reduce((s,p)=>s+parseFloat(p.fdr_avg3||3),0)/xi.length).toFixed(1);
+  const avgCons=(xi.reduce((s,p)=>s+(p.consistency||5),0)/xi.length).toFixed(1);
+  document.getElementById('p-f').textContent=f;
+  document.getElementById('p-form').textContent=avgForm;
+  document.getElementById('p-fdr').textContent=avgFdr;
+  document.getElementById('p-cons').textContent=avgCons;
+  document.getElementById('cons-bar').style.width=(avgCons*10)+'%';
+  document.getElementById('briefing').textContent=briefing;
+  document.getElementById('squad-list').innerHTML=[...xi,...bench].map(p=>plRow(p)).join('');
+  document.getElementById('rankings').innerHTML=`<div class="pl-list">${(top_players||[]).slice(0,20).map(p=>`<div class="pl-row"><div class="pp s-${p.pos}" style="background:var(--bg4)">${p.pos}</div><div><div class="pn">${p.name}</div><div class="pt2">${p.team} · £${p.price}m · ${p.form} form</div></div><div class="cr hi">${p.xpts} xPts</div><div class="mom ${momC(p.momentum||0)}">${momS(p.momentum||0)}</div><div class="cr"><span class="fdr ${fdrC(p.fdr_avg3||3)}">${p.fdr_avg3||3}</span></div></div>`).join('')}</div>`;
+  document.getElementById('gen-time').textContent='Generated: '+new Date(generated_at).toLocaleString();
+  document.getElementById('results').style.display='block';
+}
+
+// ── TAB SWITCHING ──
+async function switchTab(tab, btn) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('tab-squad').style.display     = tab === 'squad'     ? 'block' : 'none';
+  document.getElementById('tab-transfers').style.display = tab === 'transfers' ? 'block' : 'none';
+
+  // Load player list once when transfer tab first opened
+  if (tab === 'transfers' && !allBootstrapPlayers.length) {
+    try {
+      const input = document.getElementById('player-search');
+      input.placeholder = 'Loading players...';
+      const res  = await fetch(`${API}/api/players`);
+      const json = await res.json();
+      allBootstrapPlayers = json.players || [];
+      input.placeholder = `Search from ${allBootstrapPlayers.length} players...`;
+    } catch(e) {
+      document.getElementById('player-search').placeholder = 'Could not load players — is server running?';
+    }
+  }
+}
+
+// ── TRANSFER PLANNER ──
+let freeTransfers = 1;
+function setFT(btn, n) {
+  document.querySelectorAll('.ft-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  freeTransfers = n;
+}
+
+
+// ── PLAYER SEARCH ──
+let allBootstrapPlayers = [];
+let pickedPlayers = [];
+
+async function initPlayerSearch() {
+  if (allBootstrapPlayers.length) return;
+  try {
+    const res  = await fetch(`${API}/api/health`);
+    // Load player list from bootstrap via server
+    const res2 = await fetch(`${API}/api/squad/4-3-3`);
+    // We'll load lazily on first search instead
+  } catch(e) {}
+}
+
+function searchPlayers(query) {
+  // Pure in-memory search — no API calls, instant results
+  const box = document.getElementById('search-results');
+  if (!query || query.length < 2) { box.style.display = 'none'; return; }
+  if (!allBootstrapPlayers.length) { box.style.display = 'none'; return; }
+
+  const q      = query.toLowerCase();
+  const picked = new Set(pickedPlayers.map(p => p.name));
+  const matches = allBootstrapPlayers
+    .filter(p => !picked.has(p.name) &&
+      (p.name.toLowerCase().includes(q) || p.full_name.toLowerCase().includes(q)))
+    .slice(0, 8);
+
+  if (!matches.length) { box.style.display = 'none'; return; }
+
+  box.innerHTML = matches.map(p => `
+    <div class="sr-item" onclick="addPlayer(${JSON.stringify(p).replace(/"/g,"&quot;")})">
+      <span>${p.name} <span style="color:var(--muted)">${p.team}</span></span>
+      <span class="sr-pos">${p.pos} · £${p.price}m · ${p.form} form</span>
+    </div>`).join('');
+  box.style.display = 'block';
+}
+
+function addPlayer(p) {
+  if (pickedPlayers.length >= 15) { alert('Squad full — remove a player first.'); return; }
+  if (pickedPlayers.find(x => x.name === p.name)) return;
+  pickedPlayers.push(p);
+  renderPicked();
+  document.getElementById('player-search').value = '';
+  document.getElementById('search-results').style.display = 'none';
+}
+
+function removePlayer(name) {
+  pickedPlayers = pickedPlayers.filter(p => p.name !== name);
+  renderPicked();
+}
+
+function clearPicks() {
+  pickedPlayers = [];
+  renderPicked();
+}
+
+function renderPicked() {
+  const container = document.getElementById('picked-players');
+  const count     = document.getElementById('pick-count');
+  count.textContent = pickedPlayers.length;
+
+  if (!pickedPlayers.length) {
+    container.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:8px">Search and add your 15 players above...</div>';
+    return;
+  }
+
+  const posOrder = {GK:0,DEF:1,MID:2,FWD:3};
+  const sorted   = [...pickedPlayers].sort((a,b) => posOrder[a.pos] - posOrder[b.pos]);
+
+  container.innerHTML = sorted.map(p => `
+    <div class="picked-row">
+      <div>
+        <span class="picked-name">${p.name}</span>
+        <span class="picked-meta"> · ${p.team} · ${p.pos} · £${p.price}m</span>
+      </div>
+      <span class="picked-remove" onclick="removePlayer('${p.name}')">✕</span>
+    </div>`).join('');
+
+  // Sync hidden textarea
+  document.getElementById('squad-input').value = pickedPlayers.map(p => p.name).join('\n');
+  document.getElementById('bank-input').value  = document.getElementById('bank-input').value || '0';
+}
+
+// Close search on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('#player-search') && !e.target.closest('#search-results')) {
+    document.getElementById('search-results').style.display = 'none';
+  }
+});
+
+async function runTransfers() {
+  const btn  = document.getElementById('tp-btn');
+  const raw  = document.getElementById('squad-input').value.trim();
+  const bank = parseFloat(document.getElementById('bank-input').value) || 0;
+
+  if (!raw) { alert('Please enter your current squad first.'); return; }
+
+  const players = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  if (players.length < 1) { alert('Enter at least 1 player name.'); return; }
+
+  btn.disabled = true;
+  document.getElementById('tp-btn-txt').innerHTML = '<div class="spin"></div> ANALYSING...';
+  document.getElementById('tp-results').style.display = 'none';
+  document.getElementById('tp-error').style.display   = 'none';
+
+  try {
+    const res  = await fetch(`${API}/api/transfers`, {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({ players, bank, free_transfers: freeTransfers }),
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+
+    renderTransfers(json);
+  } catch(e) {
+    document.getElementById('tp-error').style.display     = 'block';
+    document.getElementById('tp-error').textContent = 'Error: ' + e.message;
+  }
+
+  btn.disabled = false;
+  document.getElementById('tp-btn-txt').innerHTML = '⇄ ANALYSE TRANSFERS';
+}
+
+function renderTransfers(data) {
+  const { transfers, briefing, unmatched } = data;
+
+  // Briefing
+  document.getElementById('tp-briefing').textContent = briefing;
+
+  // Transfer cards
+  let html = '';
+  if (unmatched.length) {
+    html += `<div style="font-family:var(--mono);font-size:11px;color:var(--amber);margin-bottom:12px;padding:10px 14px;background:rgba(255,171,64,0.06);border:1px solid rgba(255,171,64,0.2);border-radius:8px">
+      Could not match: ${unmatched.join(', ')} — check spelling
+    </div>`;
+  }
+
+  if (!transfers.length) {
+    html += `<div style="font-family:var(--mono);font-size:13px;color:var(--muted);padding:24px;text-align:center">
+      No meaningful transfer improvements found — your squad looks solid!
+    </div>`;
+  }
+
+  transfers.forEach(t => {
+    const gain     = t.net_gain;
+    const isHit    = t.hit_required;
+    const worthy   = t.hit_worth_it;
+    const gainCls  = gain >= 0 ? 'pos' : 'neg';
+    const gainSign = gain >= 0 ? '+' : '';
+    const cardCls  = isHit ? (worthy ? 'worthy' : 'hit') : '';
+
+    const outMom = t.out.momentum || 0;
+    const inMom  = t.in.momentum  || 0;
+
+    html += `<div class="tr-card ${cardCls}">
+      <div class="tr-player">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">▼ Out</div>
+        <div class="tr-name">${t.out.name}</div>
+        <div class="tr-meta">${t.out.team} · £${t.out.price}m · ${t.out.form} form · ${outMom >= 0 ? '+' : ''}${outMom.toFixed(1)} momentum</div>
+        <div class="tr-meta" style="margin-top:2px">xPts: ${t.out.xpts} · FDR: ${t.out.fdr_avg3}</div>
+      </div>
+      <div class="tr-arrow">→</div>
+      <div class="tr-player">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">▲ In</div>
+        <div class="tr-name">${t.in.name}</div>
+        <div class="tr-meta">${t.in.team} · £${t.in.price}m · ${t.in.form} form · ${inMom >= 0 ? '+' : ''}${inMom.toFixed(1)} momentum</div>
+        <div class="tr-meta" style="margin-top:2px">xPts: ${t.in.xpts} · FDR: ${t.in.fdr_avg3}</div>
+        ${isHit ? `<span class="tr-hit-badge ${worthy ? 'no' : 'yes'}">${worthy ? '✓ Hit worth it' : '✗ Hit not worth it'}</span>` : '<span class="tr-hit-badge no">✓ Free transfer</span>'}
+      </div>
+      <div class="tr-gain">
+        <div class="tr-gain-val ${gainCls}">${gainSign}${gain.toFixed(1)}</div>
+        <div class="tr-gain-sub">net xPts gain</div>
+        ${isHit ? '<div class="tr-gain-sub" style="color:var(--amber)">-4pt hit</div>' : ''}
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('transfer-list').innerHTML  = html;
+  document.getElementById('tp-results').style.display = 'block';
+}
+
+async function run(){
+  const btn=document.getElementById('run-btn');
+  btn.disabled=true;
+  document.getElementById('btn-txt').innerHTML='<div class="spin"></div> ANALYSING...';
+  document.getElementById('log-wrap').style.display='block';
+  document.getElementById('results').style.display='none';
+  document.getElementById('err').style.display='none';
+  document.getElementById('log-box').innerHTML='';
+  try{
+    log('Checking backend...');
+    await fetch(`${API}/api/health`).then(r=>{if(!r.ok)throw new Error('backend offline');return r.json();});
+    log('Backend connected','ok');
+    log('Fetching FPL data + per-player GW history (allow ~30s)...');
+    const res=await fetch(`${API}/api/squad/${formation}`);
+    const json=await res.json();
+    if(!json.ok)throw new Error(json.error);
+    log('Data enriched + squad built','ok');
+    log('Claude AI briefing ready','ok');
+    render(json.data);
+    document.getElementById('btn-txt').innerHTML='↯ REGENERATE';
+  }catch(e){
+    log('Error: '+e.message,'err');
+    document.getElementById('err-msg').textContent=e.message;
+    document.getElementById('err').style.display='block';
+    document.getElementById('btn-txt').innerHTML='↯ TRY AGAIN';
+  }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>
