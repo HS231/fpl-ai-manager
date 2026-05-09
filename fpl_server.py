@@ -535,10 +535,22 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
     team_map = {t["id"]: t for t in boot["teams"]}
     pos_map  = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
 
-    # Current gameweek
+    # Current gameweek — always find the most relevant upcoming one
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+
+    # First try: find next gameweek with a future deadline
+    future_gws = [e for e in boot["events"]
+                  if e.get("deadline_time") and
+                  datetime.fromisoformat(e["deadline_time"].replace("Z","+00:00")) > now]
+    next_gw    = future_gws[0] if future_gws else None
+
+    # Fallback: use is_current or is_next flags
     current_gw = next((e for e in boot["events"] if e["is_current"]), None)
-    next_gw    = next((e for e in boot["events"] if e["is_next"]),    None)
-    active_gw  = current_gw or next_gw
+    flag_gw    = next((e for e in boot["events"] if e["is_next"]), None)
+
+    # Pick the most accurate one
+    active_gw  = next_gw or current_gw or flag_gw
     gw_id      = active_gw["id"] if active_gw else 38
     deadline   = active_gw["deadline_time"] if active_gw else None
 
