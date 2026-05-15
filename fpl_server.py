@@ -200,31 +200,52 @@ def calc_team_strength(team_data: dict, is_home: bool) -> float:
 
 def calc_xpts(player: dict, fixture_list: list, team_data: dict) -> float:
     """
-    Expected points v3 — clean additive model, no multiplier stacking.
+    Expected points v4 — full signal model.
+
+    Signals used:
+    - PPG, form, xGI (core performance)
+    - ICT index: influence, creativity, threat (FPL forward-looking indicators)
+    - Transfer momentum (crowd wisdom)
+    - Fixture difficulty per GW (additive adjustments)
+    - Home/away split from player history
+    - Clean sheet probability for DEF/GK
+    - Momentum (trending up/down)
+    - Consistency (reliability vs boom/bust)
+    - Rotation risk (minutes trend)
+    - Set piece bonus (penalty/FK takers)
+    - Injury multiplier (chance of playing)
 
     Target ranges (3 GW total):
       Elite premium (Haaland, Salah): 18-24
       Good mid-price (Gibbs-White):   12-17
       Budget enabler:                  6-10
-
-    Each gameweek contributes independently.
-    Adjustments are additive bonuses/penalties, not multipliers.
-    This prevents compounding inflation.
     """
     ppg       = float(player.get("points_per_game") or 0)
     form      = float(player.get("form") or 0)
     xgi       = float(player.get("xgi") or 0)
     momentum  = player.get("momentum", 0)
     pos       = player.get("pos", "MID")
-    consist   = player.get("consistency", 5)   # 0-10
+    consist   = player.get("consistency", 5)
     rot_risk  = player.get("rotation_risk", "unknown")
     home_away = player.get("home_away", {})
     sp_bonus  = player.get("set_piece_bonus", 0)
 
+    # ICT index signals — normalised to small additive bonuses
+    # FPL threat/creativity range 0-300, influence 0-200
+    threat     = float(player.get("threat") or 0)
+    creativity = float(player.get("creativity") or 0)
+    influence  = float(player.get("influence") or 0)
+    ict_bonus  = min(1.5, (threat * 0.003) + (creativity * 0.002) + (influence * 0.001))
+
+    # Transfer momentum — are managers buying or selling?
+    transfers_in  = player.get("transfers_in", 0)
+    transfers_out = player.get("transfers_out", 0)
+    net_transfers = transfers_in - transfers_out
+    # Normalise: 200k net buys = +0.5 bonus, 200k net sells = -0.5 penalty
+    transfer_signal = max(-0.8, min(0.8, net_transfers / 400000))
+
     # ── Base expected points per game ──
-    # Anchored to PPG as the most reliable signal
-    # Form adds recency, xgi adds goal threat context
-    base_per_gw = (ppg * 0.55) + (form * 0.25) + (xgi * 0.20)
+    base_per_gw = (ppg * 0.50) + (form * 0.30) + (xgi * 0.20)
     base_per_gw = max(0.0, base_per_gw)
 
     total = 0.0
@@ -234,11 +255,11 @@ def calc_xpts(player: dict, fixture_list: list, team_data: dict) -> float:
 
         gw = base_per_gw
 
-        # Fixture difficulty adjustment — additive, not multiplicative
+        # Fixture difficulty — additive
         fdr_adj = {1: +1.5, 2: +0.8, 3: 0.0, 4: -0.8, 5: -1.8}.get(fdr, 0.0)
         gw += fdr_adj
 
-        # Home advantage — small flat bonus if player scores more at home
+        # Home advantage from player's own history
         if is_home:
             home_adv = home_away.get("home_advantage", 0)
             gw += min(0.8, max(-0.8, home_adv * 0.3))
@@ -250,22 +271,35 @@ def calc_xpts(player: dict, fixture_list: list, team_data: dict) -> float:
         total += max(0.0, gw)
 
     # ── Global additive adjustments ──
+    total += max(-1.5, min(1.5, momentum * 0.3))  # momentum
+    total += ict_bonus                              # ICT signals
+    total += transfer_signal                        # transfer momentum
 
-    # Momentum — trending up = small bonus, trending down = small penalty
-    total += max(-1.5, min(1.5, momentum * 0.3))
-
-    # Consistency — unreliable players get a small penalty
     if consist < 4:
         total -= 1.0
     elif consist > 7:
         total += 0.5
 
-    # Rotation risk penalty
     rot_pen = {"low": 0.0, "medium": -1.0, "high": -2.5, "unknown": -0.5}.get(rot_risk, 0.0)
     total += rot_pen
-
-    # Set piece bonus — capped at 1.5 over 3 GWs
     total += min(1.5, sp_bonus)
+
+    # ── INJURY MULTIPLIER ──
+    # Apply chance of playing as a direct multiplier
+    # 75% doubtful almost always plays but may be managed — 0.85x
+    # 50% doubtful is a genuine risk — 0.50x
+    # 25% doubtful very unlikely — 0.20x
+    chance = player.get("chance", None)
+    status = player.get("status", "a")
+    if status == "d" or (chance is not None and chance < 100):
+        injury_mult = {
+            100: 1.00,
+            75:  0.85,
+            50:  0.50,
+            25:  0.20,
+            0:   0.00,
+        }.get(chance if chance is not None else 100, 1.00)
+        total *= injury_mult
 
     return round(max(0.0, total), 2)
 
@@ -449,12 +483,40 @@ def build_squad(players: list, formation: str = "4-4-2") -> dict:
                 spent += p["price"]
                 used_ids.add(p["id"])
 
-    # ── Captain logic ──
-    # Captain = highest xpts in XI, with tiebreak on form
-    captain = max(xi, key=lambda x: (x["xpts"], x["form"]))
+    # ── Captain logic v2 ──
+    # Rules:
+    # 1. Never captain a doubtful player (chance < 100 or status == "d")
+    # 2. Prefer home fixture for captain
+    # 3. Minimum consistency of 4/10 for captain
+    # 4. Tiebreak: form, then home fixture
+
+    def captain_score(p):
+        """Score a player for captain consideration."""
+        # Disqualify doubtful players entirely
+        if p.get("status") == "d" or (p.get("chance") is not None and p.get("chance") < 100):
+            return -999
+        # Disqualify inconsistent players
+        if p.get("consistency", 5) < 4:
+            return -999
+        score = p["xpts"]
+        # Bonus for home fixture
+        if p.get("next_home"):
+            score += 1.5
+        # Bonus for high consistency
+        score += (p.get("consistency", 5) - 5) * 0.2
+        return score
+
+    # Captain from fully fit players first
+    eligible_caps = [p for p in xi if captain_score(p) > -999]
+
+    # Fallback: if all players are doubtful, pick highest xpts regardless
+    if not eligible_caps:
+        eligible_caps = xi
+
+    captain = max(eligible_caps, key=captain_score)
     vice    = max(
         [p for p in xi if p["id"] != captain["id"]],
-        key=lambda x: (x["xpts"], x["form"])
+        key=lambda x: (x["xpts"], x.get("next_home", False))
     )
 
     total_value = round(sum(p["price"] for p in xi + bench), 1)
@@ -487,43 +549,61 @@ def get_ai_briefing(squad: dict, gw_id: int) -> str:
     vc     = squad["vice_captain"]
 
     # Build a rich data summary to give Claude
+    # Build injury flags for doubtful players
+    doubtful_players = [p for p in xi + bench if p.get("is_doubtful") or (p.get("chance") is not None and p.get("chance") < 100)]
+    doubtful_str = ", ".join([
+        f"{p['name']} ({p.get('chance',75)}% chance{': ' + p['news'] if p.get('news') else ''})"
+        for p in doubtful_players
+    ]) if doubtful_players else "None"
+
+    # Build transfer momentum flags
+    hot_transfers = sorted(
+        [p for p in xi if p.get("transfers_in", 0) > 50000],
+        key=lambda x: x.get("transfers_in", 0), reverse=True
+    )[:3]
+    transfer_str = ", ".join([
+        f"{p['name']} (+{p.get('transfers_in',0)//1000}k owners this GW)"
+        for p in hot_transfers
+    ]) if hot_transfers else "None"
+
     xi_summary = "\n".join([
         f"  {p['pos']} | {p['name']} ({p['team']}) | £{p['price']}m | "
         f"xPts:{p['xpts']} | Form:{p['form']} | Momentum:{p.get('momentum',0):+.1f} | "
         f"Consistency:{p.get('consistency',5)}/10 | FDR:{p.get('fdr_avg3','?')} | "
-        f"Next fixture: {'HOME' if p.get('next_home') else 'AWAY'} | "
-        f"SetPiece bonus:{p.get('set_piece_bonus',0)} | "
-        f"Rotation:{p.get('rotation_risk','?')} | "
-        f"PrevSeason anchor:{p.get('prev_season_anchor',0)}"
+        f"Next: {'HOME' if p.get('next_home') else 'AWAY'} | "
+        f"ICT:{p.get('ict_index',0)} | Rotation:{p.get('rotation_risk','?')} | "
+        f"{'⚠ DOUBTFUL ' + str(p.get('chance','?')) + '%' if p.get('is_doubtful') else 'Fit'}"
         for p in xi
     ])
-    bench_summary = ", ".join([f"{p['name']} ({p['pos']}, £{p['price']}m)" for p in bench])
+    bench_summary = ", ".join([f"{p['name']} ({p['pos']}, £{p['price']}m{'  ⚠' if p.get('is_doubtful') else ''})" for p in bench])
 
-    prompt = f"""You are an elite FPL (Fantasy Premier League) analyst with 10+ years of experience. 
+    prompt = f"""You are an elite FPL (Fantasy Premier League) analyst with 10+ years of experience.
 You have just built the following optimal squad for Gameweek {gw_id}.
 
 FORMATION: {squad['formation']}
 TOTAL VALUE: £{squad['total_value']}m (£{squad['bank']}m in bank)
-CAPTAIN: {cap['name']} ({cap['team']}) — xPts: {cap['xpts']}, Form: {cap['form']}
+CAPTAIN: {cap['name']} ({cap['team']}) — xPts: {cap['xpts']}, Form: {cap['form']}, Next: {'HOME' if cap.get('next_home') else 'AWAY'}
 VICE CAPTAIN: {vc['name']} ({vc['team']}) — xPts: {vc['xpts']}
 
-STARTING XI (pos | name | price | expected pts | form | momentum | consistency | fixture difficulty | rotation risk):
+INJURY CONCERNS: {doubtful_str}
+TRANSFER MOMENTUM (managers buying in): {transfer_str}
+
+STARTING XI (pos | name | price | xPts | form | momentum | consistency | FDR | home/away | ICT | rotation | fitness):
 {xi_summary}
 
 BENCH: {bench_summary}
 
-Write a punchy, expert weekly manager briefing of around 200 words. Structure it as:
-1. A sharp opening sentence summarising the overall strategy
-2. Captain/VC rationale with specific fixture context
-3. Two or three standout picks worth highlighting (differentials, in-form, easy fixtures)
-4. Any risk flags the manager should watch (injuries, rotation risks, tough fixtures)
-5. A confident closing outlook for the gameweek
+Write a punchy, expert weekly manager briefing of around 220 words covering:
+1. Overall squad strategy in one sharp sentence
+2. Captain/VC rationale with fixture context — mention if home advantage played a role
+3. Two or three standout picks — mention ICT scores or transfer momentum where relevant
+4. Explicitly call out every doubtful player by name, their % chance, and what it means for the squad
+5. Confident closing outlook
 
-Write in second person ("your squad", "you've loaded up on..."). 
-Be specific — reference actual player names, teams, fixture difficulties.
-Sound like a knowledgeable friend, not a robot. No bullet points — flowing prose only."""
+Write in second person. Be specific with names, teams, fixtures.
+Sound like a knowledgeable friend. Plain prose only, no markdown, no bullet points."""
 
-    prompt += "\n\nIMPORTANT: Write in plain prose only. No markdown, no # headings, no ** bold, no bullet points."
+    prompt += "\n\nIMPORTANT: Always explicitly mention any doubtful/injured players and their risk. Never ignore injury flags."
 
     response = req.post(
         "https://api.anthropic.com/v1/messages",
@@ -600,18 +680,27 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
             team_fdr[f["team_a"]].append(f["team_a_difficulty"])
 
     # Filter to available players with meaningful minutes
+    # Include doubtful players (d) — we apply injury multiplier instead of excluding
     candidates = [
         p for p in boot["elements"]
-        if p["status"] not in ("u",)             # not unavailable
-        and (p.get("minutes") or 0) > 100        # has played meaningfully
-        and (p.get("chance_of_playing_next_round") or 100) >= 50  # likely to play
+        if p["status"] not in ("u", "i", "s")   # exclude unavailable, injured, suspended
+        and (p.get("minutes") or 0) > 90         # has played meaningfully
+        and (p.get("chance_of_playing_next_round") or 100) >= 25  # at least 25% chance
     ]
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Enriching {len(candidates)} players with GW history...")
 
     enriched = []
-    # Fetch per-player history — limit to top 150 by total points to keep it fast
-    top_candidates = sorted(candidates, key=lambda x: x.get("total_points", 0), reverse=True)[:150]
+
+    # EXPANDED POOL: top 200 by a combined form+points score
+    # This catches in-form players (like Doku) who had a slow start
+    def candidate_score(p):
+        form        = float(p.get("form") or 0)
+        total_pts   = p.get("total_points", 0)
+        chance      = (p.get("chance_of_playing_next_round") or 100) / 100
+        return (form * 4.0 + total_pts * 0.1) * chance
+
+    top_candidates = sorted(candidates, key=candidate_score, reverse=True)[:200]
 
     # Build next-fixture list per team with home/away context
     # Structure: team_id -> [{"fdr": X, "is_home": bool, "event": N}, ...]
@@ -662,6 +751,17 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
                 "minutes":         p.get("minutes", 0),
                 "status":          p.get("status", "a"),
                 "chance":          p.get("chance_of_playing_next_round"),
+                # ICT index — FPL's own forward-looking performance indicators
+                "influence":       float(p.get("influence") or 0),
+                "creativity":      float(p.get("creativity") or 0),
+                "threat":          float(p.get("threat") or 0),
+                "ict_index":       float(p.get("ict_index") or 0),
+                # Transfer momentum — crowd wisdom signal
+                "transfers_in":    p.get("transfers_in_event", 0),
+                "transfers_out":   p.get("transfers_out_event", 0),
+                # Injury flag for briefing
+                "is_doubtful":     p.get("status") == "d",
+                "news":            p.get("news", ""),
                 "penalties_order":        p.get("penalties_order"),
                 "direct_freekicks_order": p.get("direct_freekicks_order"),
                 "corners_order":          p.get("corners_and_indirect_freekicks_order"),
