@@ -33,14 +33,27 @@ HEADERS = {
     "Accept": "application/json",
 }
 
-# ── Simple in-memory cache (avoids hammering the FPL API) ─
+# ── Simple in-memory cache ─────────────────────────────────
 _cache = {}
-CACHE_TTL = 300  # seconds — refresh data every 5 minutes
+
+def get_cache_ttl() -> int:
+    """
+    Dynamic cache TTL.
+    During the pre-season transfer window (June-August) we want
+    fresh data as often as possible — new signings, price changes
+    and position updates happen daily.
+    Once the season is underway, 5 minutes is fine.
+    """
+    month = datetime.now().month
+    if month in (6, 7, 8):      # transfer window / pre-season
+        return 60               # 60 seconds — stay current
+    return 300                  # 5 minutes during season
 
 def cached_get(url):
     """Fetch a URL, returning cached result if fresh enough."""
     now = time.time()
-    if url in _cache and now - _cache[url]["ts"] < CACHE_TTL:
+    ttl = get_cache_ttl()
+    if url in _cache and now - _cache[url]["ts"] < ttl:
         return _cache[url]["data"]
     resp = req.get(url, headers=HEADERS, timeout=15)
     resp.raise_for_status()
@@ -124,28 +137,50 @@ def calc_home_away_split(history: list) -> dict:
     }
 
 
-def calc_prev_season_anchor(history_past: list) -> float:
+# 2026/27 promoted clubs — no Premier League history
+# Coventry City, Ipswich Town, Hull City
+PROMOTED_CLUBS_2627 = {"Coventry", "Ipswich", "Hull", "COV", "IPS", "HUL"}
+
+def calc_prev_season_anchor(history_past: list, team_short: str = "") -> float:
     """
-    Previous season regression anchor.
-    A player with a strong previous season record gets a small upward
-    adjustment — prevents the model from completely ignoring pedigree
-    during a temporary bad patch.
+    Previous season regression anchor v2.
+
+    For established PL clubs: uses best of last 2 seasons pts/90.
+    For promoted clubs (Coventry, Ipswich, Hull): applies a 0.4x
+    discount to their Championship stats — PL is significantly harder
+    and their players are unproven at the top level.
+    Players from promoted clubs get a neutral anchor of 0.2 max,
+    preventing over-inflation while not completely ignoring pedigree.
+
     Returns a bonus between 0 and 1.5.
     """
     if not history_past:
         return 0.0
-    # Use best of last 2 seasons, scaled by minutes played
+
+    is_promoted = any(club in team_short for club in PROMOTED_CLUBS_2627)
+
     scored = []
     for s in history_past[-2:]:
         mins = s.get("minutes", 0)
         pts  = s.get("total_points", 0)
-        if mins > 900:   # played meaningful minutes
-            scored.append(pts / (mins / 90))  # points per 90 mins
+        if mins > 900:
+            p90 = pts / (mins / 90)
+            # Apply promotion discount — Championship pts don't translate 1:1
+            if is_promoted:
+                p90 *= 0.4
+            scored.append(p90)
+
     if not scored:
         return 0.0
+
     best_p90 = max(scored)
-    # Scale: 8+ pts/90 = 1.5 bonus, 5 pts/90 = 0.5 bonus, below 3 = 0
-    return round(min(1.5, max(0.0, (best_p90 - 3.0) * 0.3)), 2)
+    anchor = min(1.5, max(0.0, (best_p90 - 3.0) * 0.3))
+
+    # Cap promoted players at 0.2 — uncertainty is too high
+    if is_promoted:
+        anchor = min(0.2, anchor)
+
+    return round(anchor, 2)
 
 
 def calc_set_piece_bonus(player: dict) -> float:
@@ -235,7 +270,18 @@ def calc_xpts(player: dict, fixture_list: list, team_data: dict) -> float:
     threat     = float(player.get("threat") or 0)
     creativity = float(player.get("creativity") or 0)
     influence  = float(player.get("influence") or 0)
-    ict_bonus  = min(1.5, (threat * 0.003) + (creativity * 0.002) + (influence * 0.001))
+
+    # 2026/27 BPS changes: GKs, full-backs and FWDs benefit more from BPS
+    # Reflect this by boosting ICT bonus for these positions
+    # Tackle penalty removed — defenders/MIDs no longer penalised for being tackled
+    bps_pos_mult = {
+        "GK":  1.25,   # boosted — saves/sweeping now worth more in BPS
+        "DEF": 1.15,   # boosted — tackle penalty removed, clearances up
+        "MID": 1.00,   # unchanged
+        "FWD": 1.15,   # boosted — penalty scoring BPS equalised
+    }.get(pos, 1.0)
+
+    ict_bonus = min(1.5, ((threat * 0.003) + (creativity * 0.002) + (influence * 0.001)) * bps_pos_mult)
 
     # Transfer momentum — are managers buying or selling?
     transfers_in  = player.get("transfers_in", 0)
@@ -245,7 +291,14 @@ def calc_xpts(player: dict, fixture_list: list, team_data: dict) -> float:
     transfer_signal = max(-0.8, min(0.8, net_transfers / 400000))
 
     # ── Base expected points per game ──
-    base_per_gw = (ppg * 0.50) + (form * 0.30) + (xgi * 0.20)
+    # Pre-season fallback: when PPG and form are 0 (new season, no data yet),
+    # estimate from price — a £10m player should return ~6pts/GW, £5m ~3pts/GW
+    price = player.get("price", 6.0)
+    if ppg == 0 and form == 0:
+        # Price-based estimate: roughly 0.6 pts per £1m of price
+        base_per_gw = max(1.0, price * 0.6)
+    else:
+        base_per_gw = (ppg * 0.50) + (form * 0.30) + (xgi * 0.20)
     base_per_gw = max(0.0, base_per_gw)
 
     total = 0.0
@@ -264,9 +317,18 @@ def calc_xpts(player: dict, fixture_list: list, team_data: dict) -> float:
             home_adv = home_away.get("home_advantage", 0)
             gw += min(0.8, max(-0.8, home_adv * 0.3))
 
-        # Clean sheet bonus for DEF/GK
+        # Clean sheet + DefCon bonus by position
+        # 2026/27: DefCon recalibrated to favour holding MIDs
+        # DEF/GK: clean sheet probability bonus
+        # MID: small defensive contribution bonus (Rodri/Caicedo types rewarded)
         if pos in ("DEF", "GK"):
             gw += {1: 1.2, 2: 0.7, 3: 0.2, 4: 0.0, 5: 0.0}.get(fdr, 0.0)
+        elif pos == "MID":
+            # Holding MIDs get a DefCon bonus — scaled by influence score
+            # (influence correlates with defensive work rate in FPL)
+            influence = player.get("influence", 0)
+            if influence > 80:   # high defensive influence = likely holding MID
+                gw += {1: 0.4, 2: 0.3, 3: 0.15, 4: 0.0, 5: 0.0}.get(fdr, 0.0)
 
         total += max(0.0, gw)
 
@@ -604,6 +666,8 @@ Write in second person. Be specific with names, teams, fixtures.
 Sound like a knowledgeable friend. Plain prose only, no markdown, no bullet points."""
 
     prompt += "\n\nIMPORTANT: Always explicitly mention any doubtful/injured players and their risk. Never ignore injury flags."
+    prompt += "\n2026/27 SEASON RULES: Max 5 free transfers can be rolled. Two sets of chips (Wildcard x2, Free Hit x2, Bench Boost x2, Triple Captain x2). No AFCON transfer top-up this season. GW lockdown at 09:00 UK time day after final match."
+    prompt += "\nPromoted clubs this season: Coventry City, Ipswich Town, Hull City. Players from these clubs have no Premier League track record — flag uncertainty when recommending them."
 
     response = req.post(
         "https://api.anthropic.com/v1/messages",
@@ -679,13 +743,20 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
         if len(team_fdr[f["team_a"]]) < cfg.FORECAST_GWS:
             team_fdr[f["team_a"]].append(f["team_a_difficulty"])
 
-    # Filter to available players with meaningful minutes
-    # Include doubtful players (d) — we apply injury multiplier instead of excluding
+    # Season start detection — if GW1 hasn't happened yet, minutes = 0 for everyone
+    # In this case, drop the minutes filter entirely and use price as proxy for relevance
+    total_minutes_played = sum(p.get("minutes", 0) for p in boot["elements"])
+    season_started = total_minutes_played > 10000  # roughly 5+ GWs played
+
+    # Filter to available players
     candidates = [
         p for p in boot["elements"]
-        if p["status"] not in ("u", "i", "s")   # exclude unavailable, injured, suspended
-        and (p.get("minutes") or 0) > 90         # has played meaningfully
+        if p["status"] not in ("u", "i", "s")       # exclude unavailable, injured, suspended
         and (p.get("chance_of_playing_next_round") or 100) >= 25  # at least 25% chance
+        and (
+            not season_started                        # pre-season: include everyone
+            or (p.get("minutes") or 0) > 90          # in-season: meaningful minutes only
+        )
     ]
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Enriching {len(candidates)} players with GW history...")
@@ -693,12 +764,20 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
     enriched = []
 
     # EXPANDED POOL: top 200 by a combined form+points score
-    # This catches in-form players (like Doku) who had a slow start
+    # Pre-season fallback: when form=0 and total_pts=0 (new season),
+    # use price as a proxy for quality — more expensive = better player
     def candidate_score(p):
-        form        = float(p.get("form") or 0)
-        total_pts   = p.get("total_points", 0)
-        chance      = (p.get("chance_of_playing_next_round") or 100) / 100
-        return (form * 4.0 + total_pts * 0.1) * chance
+        form      = float(p.get("form") or 0)
+        total_pts = p.get("total_points", 0)
+        price     = p.get("now_cost", 60) / 10   # £6.0m default
+        chance    = (p.get("chance_of_playing_next_round") or 100) / 100
+
+        if not season_started:
+            # Pre-season: price is the best signal we have
+            # Higher price = FPL thinks they're better
+            return (price * 2.0) * chance
+        else:
+            return (form * 4.0 + total_pts * 0.1) * chance
 
     top_candidates = sorted(candidates, key=candidate_score, reverse=True)[:200]
 
@@ -775,7 +854,7 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
                 "rotation_risk":      calc_rotation_risk(gw_mins),
                 "home_away":          calc_home_away_split(history),
                 "set_piece_bonus":    calc_set_piece_bonus(p),
-                "prev_season_anchor": calc_prev_season_anchor(history_past),
+                "prev_season_anchor": calc_prev_season_anchor(history_past, team_d.get("short_name", "")),
                 "gw_history":         gw_pts,
             }
             enriched_player["xpts"]        = calc_xpts(enriched_player, fix_list, team_d)
