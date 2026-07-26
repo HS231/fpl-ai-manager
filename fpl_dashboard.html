@@ -533,6 +533,98 @@ th.ticker-th-team{text-align:left;padding:8px 12px;}
     </div>
   </div>
 
+  <!-- ── PLAYER DEEP-DIVE MODAL ── -->
+  <div id="player-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.85);overflow-y:auto;padding:20px" onclick="closeModal(event)">
+    <div id="modal-box" style="max-width:820px;margin:40px auto;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;overflow:hidden" onclick="event.stopPropagation()">
+
+      <!-- Modal Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border)">
+        <div>
+          <div id="modal-name" style="font-family:var(--display);font-size:28px;letter-spacing:2px">—</div>
+          <div id="modal-meta" style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px">—</div>
+        </div>
+        <button onclick="document.getElementById('player-modal').style.display='none'"
+          style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);padding:8px 14px;border-radius:7px;font-family:var(--mono);font-size:12px;cursor:pointer">✕ Close</button>
+      </div>
+
+      <!-- Loading state -->
+      <div id="modal-loading" style="padding:60px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted)">
+        <div class="spin" style="margin:0 auto 16px;border-top-color:var(--green)"></div>
+        Loading player data...
+      </div>
+
+      <!-- Content -->
+      <div id="modal-content" style="display:none;padding:24px">
+
+        <!-- Verdict -->
+        <div id="modal-verdict-box" style="padding:16px 20px;border-radius:10px;margin-bottom:20px;border:1px solid">
+          <div id="modal-verdict-label" style="font-family:var(--display);font-size:32px;letter-spacing:3px;margin-bottom:6px">—</div>
+          <div id="modal-verdict-text" style="font-size:13px;line-height:1.75;color:#90a4ae"></div>
+        </div>
+
+        <!-- Stats grid -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+          <div class="sc"><div class="sl">Price</div><div class="sv" id="m-price" style="font-size:22px">—</div></div>
+          <div class="sc"><div class="sl">Form</div><div class="sv" id="m-form" style="font-size:22px">—</div></div>
+          <div class="sc"><div class="sl">PPG</div><div class="sv" id="m-ppg" style="font-size:22px">—</div></div>
+          <div class="sc"><div class="sl">Ownership</div><div class="sv" id="m-own" style="font-size:22px">—</div></div>
+          <div class="sc"><div class="sl">xGI</div><div class="sv" id="m-xgi" style="font-size:22px">—</div></div>
+          <div class="sc"><div class="sl">Consistency</div><div class="sv" id="m-cons" style="font-size:22px">—</div></div>
+          <div class="sc"><div class="sl">Blank Rate</div><div class="sv" id="m-blank" style="font-size:22px">—</div></div>
+          <div class="sc"><div class="sl">Pts/£m</div><div class="sv" id="m-value" style="font-size:22px">—</div></div>
+        </div>
+
+        <!-- Two columns: form + fixtures -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+
+          <!-- Form breakdown -->
+          <div class="panel">
+            <div class="ph"><div class="pt">Recent form — last 10 GWs</div></div>
+            <div class="pb">
+              <div id="m-gw-history" style="display:flex;flex-direction:column;gap:4px"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+                <div><div class="sl">Home avg</div><div style="font-family:var(--mono);font-size:14px;color:var(--green)" id="m-home">—</div></div>
+                <div><div class="sl">Away avg</div><div style="font-family:var(--mono);font-size:14px;color:var(--amber)" id="m-away">—</div></div>
+                <div><div class="sl">Ceiling</div><div style="font-family:var(--mono);font-size:14px;color:var(--text)" id="m-ceiling">—</div></div>
+                <div><div class="sl">Momentum</div><div style="font-family:var(--mono);font-size:14px" id="m-momentum">—</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Next 6 fixtures -->
+          <div class="panel">
+            <div class="ph"><div class="pt">Next 6 fixtures</div><div style="font-family:var(--mono);font-size:9px;color:var(--muted)" id="m-avg-fdr">avg FDR —</div></div>
+            <div class="pb">
+              <div id="m-fixtures" style="display:flex;flex-direction:column;gap:5px"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transfer trend + set pieces + alternatives -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="panel">
+            <div class="ph"><div class="pt">Transfer momentum</div></div>
+            <div class="pb">
+              <div style="font-family:var(--mono);font-size:13px" id="m-transfer-trend">—</div>
+              <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px" id="m-transfer-net">—</div>
+              <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+                <div class="sl" style="margin-bottom:6px">Set pieces</div>
+                <div style="font-family:var(--mono);font-size:11px;color:var(--text)" id="m-setpieces">None</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="ph"><div class="pt">Cheaper/better alternatives</div></div>
+            <div class="pb">
+              <div id="m-alternatives" style="display:flex;flex-direction:column;gap:6px"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <footer>
     <span id="gen-time">—</span>
     <button class="ref-btn" onclick="run()">↻ Regenerate</button>
@@ -563,7 +655,14 @@ function chip(p,isC,isV,sm=false){
 
 function plRow(p,extra=''){
   const m=p.momentum||0,fdr=p.fdr_avg3||3;
-  return `<div class="pl-row"><div class="pp s-${p.pos}" style="background:var(--bg4)">${p.pos}</div><div><div class="pn">${p.name}</div><div class="pt2">${p.team}</div></div><div class="cr hi">${extra||('£'+p.price+'m')}</div><div class="mom ${momC(m)}">${momS(m)}</div><div class="cr"><span class="fdr ${fdrC(fdr)}">${fdr}</span></div></div>`;
+  const pid = p.id || '';
+  return `<div class="pl-row" style="cursor:pointer" onclick="openPlayer(${pid},'${p.name}')" title="Click for deep-dive">
+    <div class="pp s-${p.pos}" style="background:var(--bg4)">${p.pos}</div>
+    <div><div class="pn">${p.name}</div><div class="pt2">${p.team}</div></div>
+    <div class="cr hi">${extra||('£'+p.price+'m')}</div>
+    <div class="mom ${momC(m)}">${momS(m)}</div>
+    <div class="cr"><span class="fdr ${fdrC(fdr)}">${fdr}</span></div>
+  </div>`;
 }
 
 function render(data){
@@ -1173,6 +1272,143 @@ function renderWildcard(json) {
   </div>`;
 
   document.getElementById('wc-results').style.display = 'block';
+}
+
+// ── PLAYER DEEP-DIVE MODAL ──
+function closeModal(e) {
+  if (e.target.id === 'player-modal') {
+    document.getElementById('player-modal').style.display = 'none';
+  }
+}
+
+async function openPlayer(playerId, playerName) {
+  const modal = document.getElementById('player-modal');
+  modal.style.display = 'block';
+  document.getElementById('modal-loading').style.display = 'block';
+  document.getElementById('modal-content').style.display = 'none';
+  document.getElementById('modal-name').textContent = playerName || 'Loading...';
+  document.getElementById('modal-meta').textContent = 'Fetching data...';
+
+  try {
+    const res  = await fetch(`${API}/api/player/${playerId}`);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+    renderModal(json.player, json.verdict);
+  } catch(e) {
+    document.getElementById('modal-loading').textContent = 'Error: ' + e.message;
+  }
+}
+
+function verdictStyle(label) {
+  if (label === 'BUY')  return {bg:'rgba(0,230,118,0.08)',  border:'rgba(0,230,118,0.4)',  color:'var(--green)'};
+  if (label === 'SELL') return {bg:'rgba(255,82,82,0.08)',  border:'rgba(255,82,82,0.4)',  color:'var(--red)'};
+  return                       {bg:'rgba(255,171,64,0.08)', border:'rgba(255,171,64,0.4)', color:'var(--amber)'};
+}
+
+function fdrColor(fdr) {
+  if (!fdr || fdr === 0) return 'var(--muted)';
+  if (fdr <= 2) return 'var(--green)';
+  if (fdr === 3) return '#a8d8a8';
+  if (fdr === 4) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function renderModal(p, verdict) {
+  // Parse verdict
+  const lines      = verdict.trim().split('
+');
+  const label      = lines[0].trim().toUpperCase();
+  const reasoning  = lines.slice(1).join('
+').trim();
+  const vstyle     = verdictStyle(label);
+
+  // Header
+  document.getElementById('modal-name').textContent = p.full_name || p.name;
+  document.getElementById('modal-meta').textContent =
+    `${p.team} · ${p.pos} · £${p.price}m · ${p.selected_pct}% owned · ${p.status.toUpperCase()}${p.news ? ' — ' + p.news : ''}`;
+
+  // Verdict box
+  const vbox = document.getElementById('modal-verdict-box');
+  vbox.style.background   = vstyle.bg;
+  vbox.style.borderColor  = vstyle.border;
+  document.getElementById('modal-verdict-label').style.color = vstyle.color;
+  document.getElementById('modal-verdict-label').textContent = label;
+  document.getElementById('modal-verdict-text').textContent  = reasoning;
+
+  // Stats
+  document.getElementById('m-price').textContent = `£${p.price}m`;
+  document.getElementById('m-form').textContent  = p.form;
+  document.getElementById('m-ppg').textContent   = p.ppg;
+  document.getElementById('m-own').textContent   = p.selected_pct + '%';
+  document.getElementById('m-xgi').textContent   = p.xgi;
+  document.getElementById('m-cons').textContent  = p.consistency + '/10';
+  document.getElementById('m-blank').textContent = p.blank_rate + '%';
+  document.getElementById('m-value').textContent = p.value_pts_per_m;
+
+  // GW history
+  const histEl = document.getElementById('m-gw-history');
+  histEl.innerHTML = (p.gw_history || []).map(h => {
+    const pct  = Math.min(100, (h.pts / 20) * 100);
+    const col  = h.pts >= 9 ? 'var(--green)' : h.pts >= 6 ? 'var(--amber)' : h.pts >= 3 ? '#90a4ae' : 'var(--red)';
+    return `<div style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px">
+      <span style="color:var(--muted);width:30px">GW${h.gw}</span>
+      <span style="color:var(--muted);width:28px">${h.home?'H':'A'} ${h.opp}</span>
+      <div style="flex:1;background:var(--bg3);border-radius:3px;height:8px">
+        <div style="width:${pct}%;background:${col};height:100%;border-radius:3px"></div>
+      </div>
+      <span style="color:${col};width:20px;text-align:right">${h.pts}</span>
+    </div>`;
+  }).join('');
+
+  // Home/away/ceiling/momentum
+  document.getElementById('m-home').textContent     = p.home_avg + ' pts';
+  document.getElementById('m-away').textContent     = p.away_avg + ' pts';
+  document.getElementById('m-ceiling').textContent  = p.ceiling + ' pts';
+  const momEl = document.getElementById('m-momentum');
+  momEl.textContent = (p.momentum >= 0 ? '+' : '') + p.momentum;
+  momEl.style.color = p.momentum > 0.5 ? 'var(--green)' : p.momentum < -0.5 ? 'var(--red)' : 'var(--muted)';
+
+  // Fixtures
+  document.getElementById('m-avg-fdr').textContent = `avg FDR ${p.avg_fdr_6gw}`;
+  document.getElementById('m-fixtures').innerHTML = (p.next6 || []).map(f => {
+    const fdr    = f.fdr[0] || 0;
+    const color  = fdrColor(fdr);
+    const type   = f.type === 'DGW' ? ' 🔥DGW' : f.type === 'BGW' ? ' ❌BGW' : '';
+    return `<div style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;padding:5px 8px;border-radius:6px;background:var(--bg3)">
+      <span style="color:var(--muted);width:32px">GW${f.gw}</span>
+      <span style="color:${color};flex:1">${f.display || '—'}${type}</span>
+      <span style="color:${color};font-weight:700">${fdr || '—'}</span>
+    </div>`;
+  }).join('');
+
+  // Transfer momentum
+  const netStr = p.net_transfers >= 0 ? '+' + (p.net_transfers/1000).toFixed(0)+'k' : (p.net_transfers/1000).toFixed(0)+'k';
+  const trendColor = p.net_transfers > 0 ? 'var(--green)' : p.net_transfers < 0 ? 'var(--red)' : 'var(--muted)';
+  document.getElementById('m-transfer-trend').style.color  = trendColor;
+  document.getElementById('m-transfer-trend').textContent  = p.transfer_trend;
+  document.getElementById('m-transfer-net').textContent    = `${netStr} net transfers this GW`;
+  document.getElementById('m-setpieces').textContent       = p.set_pieces.length ? p.set_pieces.join(', ') : 'No set piece duties';
+
+  // Alternatives
+  const altEl = document.getElementById('m-alternatives');
+  if (p.alternatives && p.alternatives.length) {
+    altEl.innerHTML = p.alternatives.map(a => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3);border-radius:7px;font-size:12px">
+        <div>
+          <span style="font-weight:600">${a.name}</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:6px">${a.team}</span>
+        </div>
+        <div style="font-family:var(--mono);font-size:11px;text-align:right">
+          <span style="color:var(--green)">£${a.price}m</span>
+          <span style="color:var(--muted);margin-left:8px">${a.form} form</span>
+        </div>
+      </div>`).join('');
+  } else {
+    altEl.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--muted)">No better-value alternatives found</div>';
+  }
+
+  document.getElementById('modal-loading').style.display = 'none';
+  document.getElementById('modal-content').style.display = 'block';
 }
 
 async function run(){

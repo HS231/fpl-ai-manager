@@ -1657,6 +1657,297 @@ def build_wildcard_squad(enriched: list, dgw_schedule: dict,
 
 
 # ════════════════════════════════════════════════════════════
+#  PLAYER DEEP-DIVE ENDPOINT
+# ════════════════════════════════════════════════════════════
+
+def calc_player_deepdive(player_id: int, boot: dict, fixtures_raw: list) -> dict:
+    """
+    Full player analysis for deep-dive modal.
+    Computes all derived stats and returns structured data
+    for the AI verdict and frontend display.
+    """
+    pos_map  = {1:"GK", 2:"DEF", 3:"MID", 4:"FWD"}
+    team_map = {t["id"]: t for t in boot["teams"]}
+
+    # Find player in bootstrap
+    el = next((p for p in boot["elements"] if p["id"] == player_id), None)
+    if not el:
+        raise ValueError(f"Player {player_id} not found")
+
+    team      = team_map.get(el["team"], {})
+    pos       = pos_map.get(el["element_type"], "MID")
+    price     = el["now_cost"] / 10
+    total_pts = el.get("total_points", 0)
+    minutes   = el.get("minutes", 0)
+    ppg       = float(el.get("points_per_game") or 0)
+    form      = float(el.get("form") or 0)
+
+    # Fetch full GW history
+    history_data = cached_get(ELEMENT_URL.format(pid=player_id))
+    history      = history_data.get("history", [])
+    history_past = history_data.get("history_past", [])
+
+    # ── GW-by-GW stats ──
+    gw_points   = [h["total_points"] for h in history]
+    gw_minutes  = [h["minutes"]      for h in history]
+    gw_home     = [h.get("was_home", True) for h in history]
+
+    # ── Trend — last 5 GWs ──
+    last5       = gw_points[-5:] if len(gw_points) >= 5 else gw_points
+    last5_avg   = round(sum(last5) / max(len(last5), 1), 2)
+    season_avg  = round(sum(gw_points) / max(len(gw_points), 1), 2)
+    momentum    = round(last5_avg - season_avg, 2)
+
+    # ── Home/Away split ──
+    home_pts    = [p for p, h in zip(gw_points, gw_home) if h]
+    away_pts    = [p for p, h in zip(gw_points, gw_home) if not h]
+    home_avg    = round(sum(home_pts) / max(len(home_pts), 1), 2)
+    away_avg    = round(sum(away_pts) / max(len(away_pts), 1), 2)
+
+    # ── Ceiling and floor ──
+    ceiling     = max(gw_points) if gw_points else 0
+    blank_rate  = round(sum(1 for p in gw_points if p <= 2) / max(len(gw_points), 1) * 100, 1)
+
+    # Consistency — std deviation
+    import statistics as stats_mod
+    consistency = 0.0
+    if len(gw_points) > 2:
+        avg = stats_mod.mean(gw_points)
+        if avg > 0:
+            cv = stats_mod.stdev(gw_points) / avg
+            consistency = round(max(0.0, min(10.0, 10.0 - cv * 4.0)), 1)
+
+    # ── Value ──
+    value_pts_per_m = round(total_pts / max(price, 4.0), 1)
+
+    # ── Transfer momentum ──
+    transfers_in  = el.get("transfers_in_event", 0)  or 0
+    transfers_out = el.get("transfers_out_event", 0) or 0
+    net_transfers = transfers_in - transfers_out
+    if net_transfers > 75000:
+        transfer_trend = "Rising fast"
+    elif net_transfers > 25000:
+        transfer_trend = "Rising"
+    elif net_transfers < -75000:
+        transfer_trend = "Falling fast"
+    elif net_transfers < -25000:
+        transfer_trend = "Falling"
+    else:
+        transfer_trend = "Stable"
+
+    # ── Fixtures ──
+    dgw_schedule   = detect_dgw_bgw(fixtures_raw, boot["teams"])
+    team_sched     = dgw_schedule.get(el["team"], {})
+
+    # Current GW
+    from datetime import timezone
+    now        = datetime.now(timezone.utc)
+    future_gws = [e for e in boot["events"]
+                  if e.get("deadline_time") and
+                  datetime.fromisoformat(e["deadline_time"].replace("Z","+00:00")) > now]
+    active_gw  = future_gws[0] if future_gws else None
+    gw_id      = active_gw["id"] if active_gw else 1
+
+    next6_fixtures = []
+    for gw in range(gw_id, min(gw_id + 6, 39)):
+        entry = team_sched.get(gw, {})
+        next6_fixtures.append({
+            "gw":        gw,
+            "type":      entry.get("type", "BGW" if not entry.get("opponents") else "normal"),
+            "opponents": entry.get("opponents", []),
+            "fdr":       entry.get("fdr", []),
+            "is_home":   entry.get("is_home", []),
+            "display":   " + ".join([
+                f"{opp}({'H' if h else 'A'})"
+                for opp, h in zip(entry.get("opponents",[]), entry.get("is_home",[]))
+            ]) if entry.get("opponents") else "No fixture",
+        })
+
+    avg_fdr_6gw = 0.0
+    fdr_vals    = [f for fix in next6_fixtures for f in fix["fdr"]]
+    if fdr_vals:
+        avg_fdr_6gw = round(sum(fdr_vals) / len(fdr_vals), 2)
+
+    # ── Value comparison — find cheaper same-pos alternatives ──
+    alternatives = []
+    for p in boot["elements"]:
+        if p["id"] == player_id: continue
+        if p["element_type"] != el["element_type"]: continue
+        if p["status"] in ("u","i","s"): continue
+        p_price = p["now_cost"] / 10
+        p_ppg   = float(p.get("points_per_game") or 0)
+        p_form  = float(p.get("form") or 0)
+        # Better value = cheaper OR same price but more pts
+        if p_price <= price and (p_ppg > ppg or p_form > form):
+            alternatives.append({
+                "name":  p["web_name"],
+                "team":  team_map.get(p["team"],{}).get("short_name","?"),
+                "price": p_price,
+                "ppg":   p_ppg,
+                "form":  p_form,
+            })
+    alternatives.sort(key=lambda x: x["form"], reverse=True)
+    top_alternatives = alternatives[:3]
+
+    # ── Set piece status ──
+    pk_order  = el.get("penalties_order")
+    fk_order  = el.get("direct_freekicks_order")
+    cs_order  = el.get("corners_and_indirect_freekicks_order")
+    set_piece_info = []
+    if pk_order == 1:  set_piece_info.append("Penalty taker #1")
+    elif pk_order == 2: set_piece_info.append("Penalty taker #2")
+    if fk_order == 1:  set_piece_info.append("Free kick taker #1")
+    elif fk_order == 2: set_piece_info.append("Free kick taker #2")
+    if cs_order == 1:  set_piece_info.append("Corner taker #1")
+    elif cs_order == 2: set_piece_info.append("Corner taker #2")
+
+    return {
+        # Identity
+        "id":           player_id,
+        "name":         el["web_name"],
+        "full_name":    f"{el['first_name']} {el['second_name']}",
+        "team":         team.get("name",""),
+        "team_short":   team.get("short_name",""),
+        "pos":          pos,
+        "price":        price,
+        "status":       el.get("status","a"),
+        "chance":       el.get("chance_of_playing_next_round"),
+        "news":         el.get("news",""),
+
+        # Core stats
+        "total_points":  total_pts,
+        "ppg":           ppg,
+        "form":          form,
+        "minutes":       minutes,
+        "selected_pct":  float(el.get("selected_by_percent") or 0),
+        "xg":            float(el.get("expected_goals") or 0),
+        "xa":            float(el.get("expected_assists") or 0),
+        "xgi":           float(el.get("expected_goal_involvements") or 0),
+        "ict_index":     float(el.get("ict_index") or 0),
+        "clean_sheets":  el.get("clean_sheets", 0),
+        "goals":         el.get("goals_scored", 0),
+        "assists":       el.get("assists", 0),
+        "bonus":         el.get("bonus", 0),
+
+        # Derived
+        "last5":             last5,
+        "last5_avg":         last5_avg,
+        "season_avg":        season_avg,
+        "momentum":          momentum,
+        "home_avg":          home_avg,
+        "away_avg":          away_avg,
+        "ceiling":           ceiling,
+        "blank_rate":        blank_rate,
+        "consistency":       consistency,
+        "value_pts_per_m":   value_pts_per_m,
+        "transfer_trend":    transfer_trend,
+        "net_transfers":     net_transfers,
+        "set_pieces":        set_piece_info,
+
+        # Fixtures
+        "next6":         next6_fixtures,
+        "avg_fdr_6gw":   avg_fdr_6gw,
+        "gw_history":    [{"gw": h.get("round",0), "pts": h["total_points"],
+                           "home": h.get("was_home",True),
+                           "opp": team_map.get(h.get("opponent_team"),{}).get("short_name","?")}
+                          for h in history[-10:]],
+
+        # Value comparison
+        "alternatives":  top_alternatives,
+
+        # Previous seasons
+        "prev_seasons":  [{"season": s.get("season_name",""),
+                           "total_points": s.get("total_points",0),
+                           "minutes": s.get("minutes",0)}
+                          for s in history_past[-3:]],
+    }
+
+
+def get_deepdive_verdict(data: dict) -> str:
+    """
+    Ask Claude for a Buy/Hold/Sell verdict with reasoning.
+    Returns plain text starting with BUY / HOLD / SELL.
+    """
+    alts_str = ", ".join([
+        f"{a['name']} ({a['team']}, £{a['price']}m, form {a['form']})"
+        for a in data["alternatives"]
+    ]) if data["alternatives"] else "None identified"
+
+    fixtures_str = " | ".join([
+        f"GW{f['gw']}: {f['display']} (FDR {'/'.join(str(x) for x in f['fdr'])}){' DGW' if f['type']=='DGW' else ' BGW' if f['type']=='BGW' else ''}"
+        for f in data["next6"]
+    ])
+
+    prompt = f"""You are an elite FPL analyst. Give a definitive verdict on this player.
+
+PLAYER: {data['full_name']} ({data['team_short']}, {data['pos']}, £{data['price']}m)
+STATUS: {data['status'].upper()} — {data['news'] or 'No injury news'}
+
+CURRENT SEASON STATS:
+- Total points: {data['total_points']} | PPG: {data['ppg']} | Form: {data['form']}
+- xG: {data['xg']} | xA: {data['xa']} | xGI: {data['xgi']} | ICT: {data['ict_index']}
+- Goals: {data['goals']} | Assists: {data['assists']} | Bonus: {data['bonus']}
+- Clean sheets: {data['clean_sheets']} | Minutes: {data['minutes']}
+- Ownership: {data['selected_pct']}% | Transfer trend: {data['transfer_trend']} ({data['net_transfers']:+,} this GW)
+
+PERFORMANCE ANALYSIS:
+- Last 5 GW scores: {data['last5']} (avg: {data['last5_avg']})
+- Season average: {data['season_avg']} pts/GW
+- Momentum: {data['momentum']:+.2f} (positive = improving)
+- Home avg: {data['home_avg']} | Away avg: {data['away_avg']}
+- Ceiling (best GW): {data['ceiling']} pts | Blank rate: {data['blank_rate']}% of GWs ≤2pts
+- Consistency score: {data['consistency']}/10
+- Value: {data['value_pts_per_m']} pts per £1m spent
+- Set pieces: {', '.join(data['set_pieces']) or 'None'}
+
+NEXT 6 FIXTURES:
+{fixtures_str}
+Average FDR next 6 GWs: {data['avg_fdr_6gw']}
+
+CHEAPER/BETTER ALTERNATIVES AT SAME POSITION:
+{alts_str}
+
+Write exactly 180 words. Start your response with one of these three words on its own line:
+BUY
+HOLD
+SELL
+
+Then write your reasoning in plain prose. Be specific — reference actual numbers, fixtures, alternatives by name. 
+Consider: is the price justified? Are fixtures good? Is form real or lucky? Are there better options?
+No markdown, no bullet points, second person ("this player", "at £X.Xm")."""
+
+    resp = req.post(
+        "https://api.anthropic.com/v1/messages",
+        headers={"Content-Type": "application/json",
+                 "x-api-key": cfg.ANTHROPIC_API_KEY,
+                 "anthropic-version": "2023-06-01"},
+        json={"model": "claude-sonnet-4-6", "max_tokens": 400,
+              "messages": [{"role": "user", "content": prompt}]},
+        timeout=30,
+    )
+    return resp.json()["content"][0]["text"]
+
+
+@app.route("/api/player/<int:player_id>")
+def get_player_deepdive(player_id):
+    """Player deep-dive endpoint — full stats + AI verdict."""
+    try:
+        boot         = cached_get(BOOTSTRAP_URL)
+        fixtures_raw = cached_get(FIXTURES_URL)
+        data         = calc_player_deepdive(player_id, boot, fixtures_raw)
+
+        try:
+            verdict = get_deepdive_verdict(data)
+        except Exception as e:
+            verdict = f"Verdict unavailable: {e}"
+
+        return jsonify({"ok": True, "player": data, "verdict": verdict})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ════════════════════════════════════════════════════════════
 #  PRICE CHANGES ENDPOINT
 # ════════════════════════════════════════════════════════════
 
