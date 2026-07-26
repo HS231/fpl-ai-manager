@@ -1258,6 +1258,93 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
 
 
 # ════════════════════════════════════════════════════════════
+#  FIXTURE TICKER ENDPOINT
+# ════════════════════════════════════════════════════════════
+
+@app.route("/api/fixtures/ticker")
+@app.route("/api/fixtures/ticker/<int:from_gw>")
+def get_fixture_ticker(from_gw=None):
+    """
+    Returns a 6-GW fixture ticker for all 20 Premier League teams.
+    Each cell contains: opponent, home/away, FDR, DGW/BGW flag.
+    Teams are sorted by average FDR (easiest run first).
+    """
+    try:
+        boot     = cached_get(BOOTSTRAP_URL)
+        fixtures = cached_get(FIXTURES_URL)
+
+        # Current GW
+        from datetime import timezone
+        now        = datetime.now(timezone.utc)
+        future_gws = [e for e in boot["events"]
+                      if e.get("deadline_time") and
+                      datetime.fromisoformat(e["deadline_time"].replace("Z","+00:00")) > now]
+        active_gw  = future_gws[0] if future_gws else None
+        gw_id      = from_gw or (active_gw["id"] if active_gw else 1)
+
+        team_map = {t["id"]: t for t in boot["teams"]}
+        dgw_schedule = detect_dgw_bgw(fixtures, boot["teams"])
+
+        NUM_GWS = 6
+        gw_range = list(range(gw_id, min(gw_id + NUM_GWS, 39)))
+
+        ticker = []
+        for team in boot["teams"]:
+            tid   = team["id"]
+            row   = {
+                "team_id":    tid,
+                "team_name":  team["name"],
+                "team_short": team["short_name"],
+                "gws":        [],
+            }
+            total_fdr = 0
+            fdr_count = 0
+
+            for gw in gw_range:
+                gw_entry = dgw_schedule.get(tid, {}).get(gw, {})
+                gw_type  = gw_entry.get("type", "BGW" if gw_entry.get("fixtures", 0) == 0 else "normal")
+                opps     = gw_entry.get("opponents", [])
+                fdrs     = gw_entry.get("fdr", [])
+                homes    = gw_entry.get("is_home", [])
+                avg_fdr  = round(sum(fdrs) / len(fdrs), 1) if fdrs else 0
+
+                if avg_fdr > 0:
+                    total_fdr += avg_fdr
+                    fdr_count += 1
+
+                row["gws"].append({
+                    "gw":        gw,
+                    "type":      gw_type,
+                    "fixtures":  gw_entry.get("fixtures", 0),
+                    "opponents": opps,
+                    "fdr":       fdrs,
+                    "is_home":   homes,
+                    "avg_fdr":   avg_fdr,
+                    # Display string e.g. "MCI(H)" or "ARS(A)+CHE(H)" for DGW
+                    "display":   " + ".join([
+                        f"{opp}({'H' if h else 'A'})"
+                        for opp, h in zip(opps, homes)
+                    ]) if opps else "—",
+                })
+
+            row["avg_fdr_6gw"] = round(total_fdr / max(fdr_count, 1), 2)
+            ticker.append(row)
+
+        # Sort by average FDR ascending (easiest run at top)
+        ticker.sort(key=lambda x: x["avg_fdr_6gw"])
+
+        return jsonify({
+            "ok":       True,
+            "ticker":   ticker,
+            "gw_range": gw_range,
+            "from_gw":  gw_id,
+        })
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ════════════════════════════════════════════════════════════
 #  CHIP ADVISOR ENDPOINT
 # ════════════════════════════════════════════════════════════
 

@@ -159,6 +159,20 @@ footer span{font-family:var(--mono);font-size:10px;color:var(--muted);}
 .chip-score.poor .chip-score-val{color:var(--muted);}
 .chip-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
 .chip-best{font-family:var(--mono);font-size:10px;color:var(--green);background:rgba(0,230,118,0.08);border:1px solid var(--border2);border-radius:5px;padding:3px 8px;}
+.ticker-team{padding:8px 12px;text-align:left;font-family:var(--mono);font-size:11px;color:var(--text);white-space:nowrap;border-bottom:1px solid var(--border);font-weight:500;}
+.ticker-cell{padding:6px 4px;text-align:center;border-bottom:1px solid var(--border);min-width:90px;}
+.ticker-fix{display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:6px 8px;border-radius:6px;font-size:10px;font-weight:500;cursor:default;width:84px;}
+.ticker-fix.fdr-1,.ticker-fix.fdr-2{background:rgba(0,230,118,0.18);color:#00e676;}
+.ticker-fix.fdr-3{background:rgba(168,210,168,0.15);color:#a8d8a8;}
+.ticker-fix.fdr-4{background:rgba(255,171,64,0.18);color:var(--amber);}
+.ticker-fix.fdr-5{background:rgba(255,82,82,0.18);color:var(--red);}
+.ticker-fix.dgw{border:2px solid rgba(0,230,118,0.5);box-shadow:0 0 8px rgba(0,230,118,0.15);}
+.ticker-fix.bgw{background:rgba(100,116,139,0.1);color:var(--muted);border:1px dashed rgba(100,116,139,0.3);}
+.ticker-fix .fix-opp{font-size:11px;font-weight:700;}
+.ticker-fix .fix-tag{font-size:8px;letter-spacing:0.5px;opacity:0.8;}
+.ticker-avgfdr{font-family:var(--mono);font-size:11px;text-align:center;padding:8px;border-bottom:1px solid var(--border);}
+th.ticker-th{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:8px 4px;text-align:center;border-bottom:1px solid var(--border2);}
+th.ticker-th-team{text-align:left;padding:8px 12px;}
 </style>
 </head>
 <body>
@@ -187,6 +201,7 @@ footer span{font-family:var(--mono);font-size:10px;color:var(--muted);}
       <button class="tab" onclick="switchTab('transfers',this)">⇄ Transfer Planner</button>
       <button class="tab" onclick="switchTab('dgw',this)">📅 DGW / BGW</button>
       <button class="tab" onclick="switchTab('chips',this)">♟ Chip Advisor</button>
+      <button class="tab" onclick="switchTab('ticker',this)">📊 Fixture Ticker</button>
     </div>
 
     <div id="tab-squad">
@@ -316,6 +331,33 @@ footer span{font-family:var(--mono);font-size:10px;color:var(--muted);}
         <!-- GW by GW plan -->
         <div class="sec-head">Gameweek-by-gameweek breakdown</div>
         <div id="chip-plan-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FIXTURE TICKER TAB ── -->
+  <div id="tab-ticker" style="display:none">
+    <div style="max-width:1100px;margin:0 auto">
+      <div class="sec-head">Fixture difficulty — next 6 gameweeks</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px;display:flex;gap:16px;flex-wrap:wrap">
+        <span><span style="color:var(--green)">■</span> Easy (FDR 1-2)</span>
+        <span><span style="color:#a8d8a8">■</span> Manageable (FDR 3)</span>
+        <span><span style="color:var(--amber)">■</span> Tough (FDR 4)</span>
+        <span><span style="color:var(--red)">■</span> Very Hard (FDR 5)</span>
+        <span><span style="color:var(--green);font-weight:700">DGW</span> Double GW</span>
+        <span><span style="color:var(--muted)">BGW</span> Blank GW</span>
+      </div>
+      <div id="ticker-empty" style="font-family:var(--mono);font-size:13px;color:var(--muted);padding:24px;text-align:center">
+        Click "Load Fixture Ticker" to see fixture difficulty for all 20 teams.
+      </div>
+      <button class="run-btn" id="ticker-btn" onclick="loadTicker()" style="margin-bottom:20px">
+        <span id="ticker-btn-txt">📊 LOAD FIXTURE TICKER</span>
+      </button>
+      <div id="ticker-table" style="overflow-x:auto;display:none">
+        <table id="ticker-tbl" style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px">
+          <thead id="ticker-head"></thead>
+          <tbody id="ticker-body"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -474,6 +516,7 @@ async function switchTab(tab, btn) {
   document.getElementById('tab-transfers').style.display = tab === 'transfers' ? 'block' : 'none';
   document.getElementById('tab-dgw').style.display       = tab === 'dgw'       ? 'block' : 'none';
   document.getElementById('tab-chips').style.display     = tab === 'chips'     ? 'block' : 'none';
+  document.getElementById('tab-ticker').style.display   = tab === 'ticker'   ? 'block' : 'none';
 
   // Load player list once when transfer tab first opened
   if (tab === 'transfers' && !allBootstrapPlayers.length) {
@@ -792,6 +835,92 @@ function renderChips(chipPlan) {
       <div style="font-family:var(--mono);font-size:11px;color:var(--muted)">${bestBadge}</div>
       ${chipCols}
     </div>`;
+  }).join('');
+}
+
+// ── FIXTURE TICKER ──
+async function loadTicker() {
+  const btn = document.getElementById('ticker-btn');
+  btn.disabled = true;
+  document.getElementById('ticker-btn-txt').innerHTML = '<div class="spin"></div> LOADING...';
+  document.getElementById('ticker-empty').style.display = 'none';
+
+  try {
+    const res  = await fetch(`${API}/api/fixtures/ticker`);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+    renderTicker(json.ticker, json.gw_range);
+    document.getElementById('ticker-table').style.display = 'block';
+    document.getElementById('ticker-btn-txt').innerHTML = '↻ Refresh Ticker';
+  } catch(e) {
+    document.getElementById('ticker-empty').style.display = 'block';
+    document.getElementById('ticker-empty').textContent = 'Error: ' + e.message;
+  }
+
+  btn.disabled = false;
+}
+
+function fdrClass(fdr) {
+  if (!fdr) return 'bgw';
+  if (fdr <= 2) return 'fdr-1';
+  if (fdr === 3) return 'fdr-3';
+  if (fdr === 4) return 'fdr-4';
+  return 'fdr-5';
+}
+
+function avgFdrColor(avg) {
+  if (avg <= 2.5) return 'var(--green)';
+  if (avg <= 3.2) return '#a8d8a8';
+  if (avg <= 3.8) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function renderTicker(ticker, gwRange) {
+  // Header
+  const head = document.getElementById('ticker-head');
+  head.innerHTML = `<tr>
+    <th class="ticker-th ticker-th-team">Team</th>
+    ${gwRange.map(gw => `<th class="ticker-th">GW${gw}</th>`).join('')}
+    <th class="ticker-th">Avg FDR</th>
+  </tr>`;
+
+  // Body
+  const body = document.getElementById('ticker-body');
+  body.innerHTML = ticker.map(team => {
+    const cells = team.gws.map(gw => {
+      if (gw.type === 'BGW' || gw.fixtures === 0) {
+        return `<td class="ticker-cell">
+          <div class="ticker-fix bgw">
+            <div class="fix-opp">—</div>
+            <div class="fix-tag">BGW</div>
+          </div>
+        </td>`;
+      }
+
+      const isDGW = gw.type === 'DGW';
+      const fdrCls = fdrClass(gw.avg_fdr);
+
+      // For DGW show both fixtures stacked
+      const display = gw.opponents.map((opp, i) => {
+        const home = gw.is_home[i];
+        const fdr  = gw.fdr[i];
+        return `<span style="font-size:10px;font-weight:700">${opp}<span style="font-weight:400;opacity:0.7">(${home?'H':'A'})</span></span>`;
+      }).join('<br>');
+
+      return `<td class="ticker-cell">
+        <div class="ticker-fix ${fdrCls} ${isDGW ? 'dgw' : ''}">
+          <div class="fix-opp" style="line-height:1.4">${display}</div>
+          <div class="fix-tag">${isDGW ? '2x DGW' : 'FDR '+gw.avg_fdr}</div>
+        </div>
+      </td>`;
+    }).join('');
+
+    const avgColor = avgFdrColor(team.avg_fdr_6gw);
+    return `<tr>
+      <td class="ticker-team">${team.team_short}<span style="color:var(--muted);font-size:9px;margin-left:6px">${team.team_name}</span></td>
+      ${cells}
+      <td class="ticker-avgfdr" style="color:${avgColor};font-weight:700">${team.avg_fdr_6gw}</td>
+    </tr>`;
   }).join('');
 }
 
