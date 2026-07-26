@@ -1222,6 +1222,10 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Building chip advisor plan...")
     chip_plan = build_chip_plan(gw_id, dgw_schedule, enriched, boot["teams"])
 
+    # Build price change predictions
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Predicting price changes...")
+    price_changes = predict_price_changes(boot)
+
     # Build DGW/BGW summary for frontend
     team_map_short = {t["id"]: t["short_name"] for t in boot["teams"]}
     dgw_bgw_summary = []
@@ -1253,7 +1257,92 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
         "top_players":    sorted(enriched, key=lambda x: x["xpts"], reverse=True)[:30],
         "dgw_bgw":        dgw_bgw_summary,
         "chip_plan":      chip_plan,
+        "price_changes":  price_changes,
         "generated_at":   datetime.now().isoformat(),
+    }
+
+
+# ════════════════════════════════════════════════════════════
+#  PRICE CHANGE PREDICTOR
+# ════════════════════════════════════════════════════════════
+
+def predict_price_changes(boot: dict) -> dict:
+    """
+    Predicts likely price rises and falls based on transfer momentum.
+
+    FPL price change mechanics:
+    - Each player has a hidden "sell price" counter
+    - Net transfers in = counter goes up, net transfers out = counter goes down
+    - When counter crosses a threshold (~1% of total managers), price changes by £0.1m
+    - We use transfers_in_event and transfers_out_event as our signal
+    - cost_change_event shows actual price changes this GW already
+
+    Confidence levels:
+    - Strong:   net > 200,000 transfers
+    - Likely:   net > 75,000 transfers
+    - Possible: net > 25,000 transfers
+    """
+    pos_map = {1:"GK", 2:"DEF", 3:"MID", 4:"FWD"}
+
+    # Total managers — used to normalise ownership %
+    total_managers = boot.get("total_players", 10000000)
+
+    risers  = []
+    fallers = []
+
+    for el in boot["elements"]:
+        if el.get("status") in ("u",):
+            continue
+
+        transfers_in  = el.get("transfers_in_event", 0)  or 0
+        transfers_out = el.get("transfers_out_event", 0) or 0
+        net           = transfers_in - transfers_out
+        selected_pct  = float(el.get("selected_by_percent") or 0)
+        price         = el.get("now_cost", 0) / 10
+        already_changed = el.get("cost_change_event", 0) or 0
+
+        if abs(net) < 10000:  # ignore noise
+            continue
+
+        # Confidence based on net transfer volume
+        if abs(net) > 200000:
+            confidence = "Strong"
+            conf_score = 3
+        elif abs(net) > 75000:
+            confidence = "Likely"
+            conf_score = 2
+        else:
+            confidence = "Possible"
+            conf_score = 1
+
+        player_data = {
+            "id":              el["id"],
+            "name":            el["web_name"],
+            "team":            el.get("team", 0),
+            "pos":             pos_map.get(el["element_type"], "MID"),
+            "price":           price,
+            "net_transfers":   net,
+            "transfers_in":    transfers_in,
+            "transfers_out":   transfers_out,
+            "selected_pct":    selected_pct,
+            "confidence":      confidence,
+            "conf_score":      conf_score,
+            "already_changed": already_changed,
+            "form":            float(el.get("form") or 0),
+        }
+
+        if net > 0:
+            risers.append(player_data)
+        else:
+            fallers.append(player_data)
+
+    # Sort by absolute net transfers descending
+    risers.sort(key=lambda x: x["net_transfers"], reverse=True)
+    fallers.sort(key=lambda x: x["net_transfers"])
+
+    return {
+        "risers":  risers[:15],
+        "fallers": fallers[:15],
     }
 
 
@@ -1338,6 +1427,338 @@ def get_fixture_ticker(from_gw=None):
             "ticker":   ticker,
             "gw_range": gw_range,
             "from_gw":  gw_id,
+        })
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ════════════════════════════════════════════════════════════
+#  WILDCARD OPTIMIZER
+#  Builds the best possible squad from scratch — no current team
+#  constraints. Looks 6 GWs ahead. Used when playing wildcard.
+# ════════════════════════════════════════════════════════════
+
+def calc_wildcard_score(player: dict, dgw_schedule: dict,
+                        from_gw: int, num_gws: int = 6) -> float:
+    """
+    Wildcard-specific player score.
+    Differences from xPts model:
+    - Looks num_gws ahead (default 6) not 3
+    - DGWs in ANY of the next 6 GWs get a bonus, not just GW1
+    - Sustained fixture run quality matters more than single-GW form
+    - Price efficiency is factored in (pts per £m)
+    - BGWs in the window are penalised per blank
+    """
+    ppg      = float(player.get("points_per_game") or 0)
+    form     = float(player.get("form") or 0)
+    xgi      = float(player.get("xgi") or 0)
+    price    = float(player.get("price") or 5.0)
+    consist  = player.get("consistency", 5) / 10
+    rot_risk = player.get("rotation_risk", "unknown")
+    rot_pen  = {"low": 0.0, "medium": -0.8, "high": -2.0, "unknown": -0.4}.get(rot_risk, 0.0)
+    tid      = player.get("team_id")
+    pos      = player.get("pos", "MID")
+    ict      = float(player.get("ict_index") or 0)
+    sp_bonus = player.get("set_piece_bonus", 0)
+
+    # Base score per GW
+    base = (ppg * 0.45) + (form * 0.30) + (xgi * 1.5) + (ict * 0.008)
+
+    total      = 0.0
+    dgw_count  = 0
+    bgw_count  = 0
+
+    for gw in range(from_gw, min(from_gw + num_gws, 39)):
+        gw_entry = dgw_schedule.get(tid, {}).get(gw, {})
+        gw_type  = gw_entry.get("type", "normal")
+        fdrs     = gw_entry.get("fdr", [3])
+        avg_fdr  = sum(fdrs) / max(len(fdrs), 1)
+
+        if gw_type == "BGW":
+            bgw_count += 1
+            continue  # no points for blanks
+
+        # FDR adjustment
+        fdr_adj = {1: +1.5, 2: +0.8, 3: 0.0, 4: -0.8, 5: -1.8}.get(int(avg_fdr), 0.0)
+        gw_score = base + fdr_adj
+
+        # DEF/GK clean sheet bonus
+        if pos in ("DEF", "GK"):
+            gw_score += {1: 1.2, 2: 0.7, 3: 0.2}.get(int(avg_fdr), 0.0)
+
+        # DGW bonus — player plays twice this GW
+        if gw_type == "DGW":
+            gw_score *= 1.85
+            dgw_count += 1
+
+        total += max(0.0, gw_score)
+
+    # Global adjustments
+    total += min(1.5, sp_bonus)
+    total += max(-1.5, min(1.5, player.get("momentum", 0) * 0.25))
+    total *= consist
+    total += rot_pen
+
+    # BGW penalty — each blank costs expected points
+    total -= bgw_count * (base * 0.8)
+
+    # Injury multiplier
+    chance = player.get("chance")
+    status = player.get("status", "a")
+    if status == "d" or (chance is not None and chance < 100):
+        inj_mult = {100:1.0, 75:0.85, 50:0.50, 25:0.20, 0:0.0}.get(
+            chance if chance is not None else 100, 1.0)
+        total *= inj_mult
+
+    # Price efficiency bonus — cheaper players with same output = better value
+    # Normalised: £5m player gets +0.5 bonus vs £10m player getting 0
+    value_bonus = max(0.0, (10.0 - price) * 0.1)
+    total += value_bonus
+
+    return round(max(0.0, total), 2)
+
+
+def build_wildcard_squad(enriched: list, dgw_schedule: dict,
+                         from_gw: int, formation: str = "4-3-3") -> dict:
+    """
+    Builds the optimal wildcard squad.
+    Same FPL rules as regular optimizer but:
+    - Uses wildcard_score (6-GW horizon) not xpts (3-GW)
+    - No current team constraints
+    - Slightly more aggressive on fixtures/DGWs
+    """
+    # Score all players on wildcard metric
+    scored = []
+    for p in enriched:
+        wc_score = calc_wildcard_score(p, dgw_schedule, from_gw)
+        scored.append({**p, "wc_score": wc_score})
+
+    parts  = formation.split("-")
+    n_def, n_mid, n_fwd = int(parts[0]), int(parts[1]), int(parts[2])
+
+    POS_LIMITS = {"GK": 2, "DEF": 5, "MID": 5, "FWD": 3}
+
+    by_pos = {
+        pos: sorted([p for p in scored if p["pos"] == pos],
+                    key=lambda x: x["wc_score"], reverse=True)
+        for pos in ("GK", "DEF", "MID", "FWD")
+    }
+
+    BUDGET     = 100.0
+    XI_BUDGET  = 80.0
+    team_count = {}
+    pos_count  = {"GK": 0, "DEF": 0, "MID": 0, "FWD": 0}
+    spent      = 0.0
+
+    def can_pick(p, budget_cap):
+        return (
+            team_count.get(p["team_id"], 0) < 3 and
+            pos_count[p["pos"]] < POS_LIMITS[p["pos"]] and
+            spent + p["price"] <= budget_cap
+        )
+
+    def pick(p):
+        nonlocal spent
+        team_count[p["team_id"]] = team_count.get(p["team_id"], 0) + 1
+        pos_count[p["pos"]]     += 1
+        spent                   += p["price"]
+
+    def pick_pos(pool, needed, budget_cap):
+        picks = []
+        for p in pool:
+            if len(picks) >= needed: break
+            if can_pick(p, budget_cap):
+                picks.append(p)
+                pick(p)
+        return picks
+
+    # XI
+    xi_gk  = pick_pos(by_pos["GK"],  1,     XI_BUDGET)
+    xi_def = pick_pos(by_pos["DEF"], n_def, XI_BUDGET)
+    xi_mid = pick_pos(by_pos["MID"], n_mid, XI_BUDGET)
+    xi_fwd = pick_pos(by_pos["FWD"], n_fwd, XI_BUDGET)
+
+    # Fill gaps if XI_BUDGET too tight
+    for pos_name, pool, needed in [
+        ("GK",by_pos["GK"],1),("DEF",by_pos["DEF"],n_def),
+        ("MID",by_pos["MID"],n_mid),("FWD",by_pos["FWD"],n_fwd)
+    ]:
+        existing = {"GK":xi_gk,"DEF":xi_def,"MID":xi_mid,"FWD":xi_fwd}[pos_name]
+        used     = {p["id"] for p in xi_gk+xi_def+xi_mid+xi_fwd}
+        for p in pool:
+            if len(existing) >= needed: break
+            if p["id"] in used: continue
+            if can_pick(p, BUDGET):
+                existing.append(p); pick(p); used.add(p["id"])
+
+    xi       = xi_gk + xi_def + xi_mid + xi_fwd
+    used_ids = {p["id"] for p in xi}
+
+    # Bench — cheapest viable
+    bench_gk_pool  = sorted([p for p in by_pos["GK"]  if p["id"] not in used_ids], key=lambda x: x["price"])
+    bench_out_pool = sorted([p for pos_n in ("DEF","MID","FWD")
+                              for p in by_pos[pos_n] if p["id"] not in used_ids], key=lambda x: x["price"])
+
+    bench_gk = []
+    for p in bench_gk_pool:
+        if can_pick(p, BUDGET):
+            bench_gk.append(p); pick(p); used_ids.add(p["id"]); break
+
+    bench_out = []
+    for p in bench_out_pool:
+        if len(bench_out) >= 3: break
+        if can_pick(p, BUDGET):
+            bench_out.append(p); pick(p); used_ids.add(p["id"])
+
+    bench = bench_gk + bench_out
+
+    # Safety net
+    if len(bench) < 4:
+        all_pool = sorted([p for pos_n in ("GK","DEF","MID","FWD")
+                           for p in by_pos[pos_n] if p["id"] not in used_ids],
+                          key=lambda x: x["price"])
+        for p in all_pool:
+            if len(bench) >= 4: break
+            if pos_count[p["pos"]] < POS_LIMITS[p["pos"]] and spent + p["price"] <= BUDGET:
+                bench.append(p); pos_count[p["pos"]] += 1
+                spent += p["price"]; used_ids.add(p["id"])
+
+    # Captain — best wc_score, fully fit, prefer home next fixture
+    def cap_score(p):
+        if p.get("status") == "d" or (p.get("chance") and p.get("chance") < 100):
+            return -999
+        s = p["wc_score"]
+        if p.get("next_home"): s += 1.5
+        return s
+
+    eligible = [p for p in xi if cap_score(p) > -999] or xi
+    captain  = max(eligible, key=cap_score)
+    vice     = max([p for p in xi if p["id"] != captain["id"]], key=cap_score)
+
+    total_value = round(sum(p["price"] for p in xi + bench), 1)
+
+    # DGW summary for this squad
+    dgw_players = [p for p in xi if p.get("gw_type") == "DGW"]
+    bgw_players = [p for p in xi if p.get("gw_type") == "BGW"]
+
+    return {
+        "xi":           xi,
+        "bench":        bench,
+        "captain":      captain,
+        "vice_captain": vice,
+        "total_value":  total_value,
+        "bank":         round(100.0 - total_value, 1),
+        "formation":    formation,
+        "dgw_players":  [p["name"] for p in dgw_players],
+        "bgw_players":  [p["name"] for p in bgw_players],
+        "horizon_gws":  from_gw,
+    }
+
+
+# ════════════════════════════════════════════════════════════
+#  PRICE CHANGES ENDPOINT
+# ════════════════════════════════════════════════════════════
+
+@app.route("/api/price-changes")
+def get_price_changes():
+    """
+    Standalone price change predictor.
+    Fast — only needs bootstrap data, no GW history fetching.
+    Returns top 15 predicted risers and fallers.
+    """
+    try:
+        boot          = cached_get(BOOTSTRAP_URL)
+        team_map      = {t["id"]: t["short_name"] for t in boot["teams"]}
+        price_changes = predict_price_changes(boot)
+
+        # Enrich with team short names
+        for group in ["risers", "fallers"]:
+            for p in price_changes[group]:
+                p["team_short"] = team_map.get(p["team"], "?")
+
+        return jsonify({"ok": True, **price_changes})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ════════════════════════════════════════════════════════════
+#  WILDCARD OPTIMIZER ENDPOINT
+# ════════════════════════════════════════════════════════════
+
+@app.route("/api/wildcard")
+@app.route("/api/wildcard/<formation>")
+def get_wildcard_squad(formation="4-3-3"):
+    """
+    Builds the optimal wildcard squad.
+    Uses full enriched player data with 6-GW horizon scoring.
+    Takes longer than regular squad — fetches full GW history.
+    """
+    try:
+        data = build_full_dataset(formation)
+        enriched     = data["top_players"]
+        boot         = cached_get(BOOTSTRAP_URL)
+        fixtures_raw = cached_get(FIXTURES_URL)
+        dgw_schedule = detect_dgw_bgw(fixtures_raw, boot["teams"])
+
+        current_gw = next((e for e in boot["events"] if e["is_current"]), None)
+        next_gw    = next((e for e in boot["events"] if e["is_next"]),    None)
+        active     = current_gw or next_gw
+        gw_id      = active["id"] if active else 1
+
+        wc_squad = build_wildcard_squad(enriched, dgw_schedule, gw_id, formation)
+
+        # Get AI briefing for wildcard squad
+        try:
+            cap = wc_squad["captain"]
+            vc  = wc_squad["vice_captain"]
+            xi  = wc_squad["xi"]
+
+            xi_summary = "\n".join([
+                f"  {p['pos']} | {p['name']} ({p['team']}) | £{p['price']}m | "
+                f"WC Score:{p.get('wc_score',0)} | Form:{p['form']} | "
+                f"GW type:{p.get('gw_type','normal')} | FDR:{p.get('fdr_avg3','?')}"
+                for p in xi
+            ])
+
+            prompt = f"""You are an elite FPL analyst. A manager has just activated their Wildcard chip for GW{gw_id}.
+This squad is optimised over the next 6 gameweeks, not just one.
+
+FORMATION: {formation}
+BUDGET USED: £{wc_squad['total_value']}m (£{wc_squad['bank']}m in bank)
+CAPTAIN: {cap['name']} ({cap['team']}) — WC Score: {cap.get('wc_score',0)}, Form: {cap['form']}
+VICE: {vc['name']} ({vc['team']})
+DGW PLAYERS: {', '.join(wc_squad['dgw_players']) or 'None this GW'}
+
+STARTING XI:
+{xi_summary}
+
+Write a 200-word wildcard briefing. Explain:
+1. The overall 6-GW strategy — which fixture runs and DGWs shaped this squad
+2. Captain rationale for GW{gw_id}
+3. The best long-term assets in this squad and why
+4. Any risks to monitor
+Plain prose, no markdown, second person ("your wildcard squad...")."""
+
+            resp = req.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={"Content-Type":"application/json",
+                         "x-api-key": cfg.ANTHROPIC_API_KEY,
+                         "anthropic-version":"2023-06-01"},
+                json={"model":"claude-sonnet-4-6","max_tokens":600,
+                      "messages":[{"role":"user","content":prompt}]},
+                timeout=30,
+            )
+            briefing = resp.json()["content"][0]["text"]
+        except Exception as e:
+            briefing = f"Wildcard briefing unavailable: {e}"
+
+        return jsonify({
+            "ok":        True,
+            "squad":     wc_squad,
+            "briefing":  briefing,
+            "gameweek":  gw_id,
         })
 
     except Exception as e:

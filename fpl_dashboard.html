@@ -171,6 +171,20 @@ footer span{font-family:var(--mono);font-size:10px;color:var(--muted);}
 .ticker-fix .fix-opp{font-size:11px;font-weight:700;}
 .ticker-fix .fix-tag{font-size:8px;letter-spacing:0.5px;opacity:0.8;}
 .ticker-avgfdr{font-family:var(--mono);font-size:11px;text-align:center;padding:8px;border-bottom:1px solid var(--border);}
+.price-row{display:grid;grid-template-columns:1fr 70px 80px 80px;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:var(--bg2);border:1px solid var(--border);margin-bottom:6px;font-size:12px;transition:border-color 0.15s;}
+.price-row:hover{border-color:var(--border2);}
+.price-row.riser{border-left:3px solid var(--green);}
+.price-row.faller{border-left:3px solid var(--red);}
+.price-name{font-weight:600;}
+.price-team{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:1px;}
+.price-conf{font-family:var(--mono);font-size:9px;text-align:center;padding:2px 6px;border-radius:4px;}
+.price-conf.Strong{background:rgba(0,230,118,0.15);color:var(--green);}
+.price-conf.Likely{background:rgba(255,171,64,0.15);color:var(--amber);}
+.price-conf.Possible{background:rgba(100,116,139,0.15);color:var(--muted);}
+.price-net{font-family:var(--mono);font-size:11px;text-align:right;}
+.price-net.pos{color:var(--green);}
+.price-net.neg{color:var(--red);}
+.price-val{font-family:var(--mono);font-size:11px;text-align:right;color:var(--text);}
 th.ticker-th{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:8px 4px;text-align:center;border-bottom:1px solid var(--border2);}
 th.ticker-th-team{text-align:left;padding:8px 12px;}
 </style>
@@ -202,6 +216,8 @@ th.ticker-th-team{text-align:left;padding:8px 12px;}
       <button class="tab" onclick="switchTab('dgw',this)">📅 DGW / BGW</button>
       <button class="tab" onclick="switchTab('chips',this)">♟ Chip Advisor</button>
       <button class="tab" onclick="switchTab('ticker',this)">📊 Fixture Ticker</button>
+      <button class="tab" onclick="switchTab('prices',this)">💰 Price Changes</button>
+      <button class="tab" onclick="switchTab('wildcard',this)">🃏 Wildcard</button>
     </div>
 
     <div id="tab-squad">
@@ -362,6 +378,86 @@ th.ticker-th-team{text-align:left;padding:8px 12px;}
     </div>
   </div>
 
+  <!-- ── PRICE CHANGES TAB ── -->
+  <div id="tab-prices" style="display:none">
+    <div style="max-width:900px;margin:0 auto">
+      <div class="sec-head">Predicted price changes — based on transfer momentum</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px">
+        Players being heavily transferred in are likely to rise. Heavy sells are likely to fall. Prices update nightly at ~01:30 UK time.
+      </div>
+      <button class="run-btn" id="prices-btn" onclick="loadPrices()" style="margin-bottom:24px">
+        <span id="prices-btn-txt">💰 LOAD PRICE PREDICTIONS</span>
+      </button>
+      <div id="prices-content" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div>
+            <div class="sec-head" style="margin-top:0">▲ Predicted Risers</div>
+            <div id="risers-list"></div>
+          </div>
+          <div>
+            <div class="sec-head" style="margin-top:0">▼ Predicted Fallers</div>
+            <div id="fallers-list"></div>
+          </div>
+        </div>
+      </div>
+      <div id="prices-error" style="display:none;color:var(--red);font-family:var(--mono);font-size:13px"></div>
+    </div>
+  </div>
+
+  <!-- ── WILDCARD OPTIMIZER TAB ── -->
+  <div id="tab-wildcard" style="display:none">
+    <div style="max-width:1100px;margin:0 auto">
+      <div class="sec-head">Wildcard optimizer — best squad for next 6 gameweeks</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;line-height:1.8">
+        The wildcard optimizer ignores your current team entirely. It scores every player over the next
+        <strong style="color:var(--text)">6 gameweeks</strong> — rewarding sustained fixture runs,
+        double gameweeks and value. Use this when activating your wildcard chip.
+      </div>
+
+      <div class="config-row" style="justify-content:flex-start;gap:10px;margin-bottom:20px">
+        <span class="config-label">FORMATION:</span>
+        <button class="seg on" onclick="setWCF(this,'4-3-3')">4-3-3</button>
+        <button class="seg" onclick="setWCF(this,'4-4-2')">4-4-2</button>
+        <button class="seg" onclick="setWCF(this,'3-5-2')">3-5-2</button>
+        <button class="seg" onclick="setWCF(this,'3-4-3')">3-4-3</button>
+        <button class="seg" onclick="setWCF(this,'5-3-2')">5-3-2</button>
+      </div>
+
+      <button class="run-btn" id="wc-btn" onclick="runWildcard()">
+        <span id="wc-btn-txt">🃏 BUILD WILDCARD SQUAD</span>
+      </button>
+
+      <div id="wc-error" style="display:none;margin-top:16px;background:rgba(255,82,82,0.06);border:1px solid rgba(255,82,82,0.2);border-radius:10px;padding:16px;font-family:var(--mono);font-size:12px;color:var(--red)"></div>
+
+      <div id="wc-results" style="display:none;margin-top:28px">
+        <div class="stat-row" style="margin-bottom:24px">
+          <div class="sc"><div class="sl">Squad Value</div><div class="sv" id="wc-val">—</div><div class="ss" id="wc-bank">—</div></div>
+          <div class="sc"><div class="sl">Captain</div><div class="sv" id="wc-cap" style="font-size:18px;padding-top:4px">—</div><div class="ss" id="wc-cap-sub">—</div></div>
+          <div class="sc"><div class="sl">DGW Players</div><div class="sv" id="wc-dgw" style="font-size:18px;padding-top:4px">—</div><div class="ss">in starting XI</div></div>
+          <div class="sc"><div class="sl">Horizon</div><div class="sv" id="wc-horizon">6 GWs</div><div class="ss">optimisation window</div></div>
+        </div>
+
+        <div class="main-grid">
+          <div>
+            <div class="card">
+              <div class="card-head"><div class="card-title">WILDCARD XI</div><div class="card-meta" id="wc-pitch-meta">—</div></div>
+              <div class="pitch" id="wc-pitch"></div>
+              <div class="bench-wrap"><div class="bench-lbl">BENCH</div><div class="bench-row" id="wc-bench"></div></div>
+            </div>
+            <div class="sec-head">Full squad — sorted by wildcard score</div>
+            <div class="card"><div style="padding:12px"><div id="wc-squad-list"></div></div></div>
+          </div>
+          <div class="panel-stack">
+            <div class="panel">
+              <div class="ph"><div class="pt">Wildcard Briefing</div><div style="font-family:var(--mono);font-size:9px;color:var(--green)">CLAUDE · 6GW VIEW</div></div>
+              <div class="pb"><div class="briefing" id="wc-briefing">—</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── TRANSFER PLANNER TAB ── -->
   <div id="tab-transfers" style="display:none">
     <div class="tp-wrap">
@@ -517,6 +613,8 @@ async function switchTab(tab, btn) {
   document.getElementById('tab-dgw').style.display       = tab === 'dgw'       ? 'block' : 'none';
   document.getElementById('tab-chips').style.display     = tab === 'chips'     ? 'block' : 'none';
   document.getElementById('tab-ticker').style.display   = tab === 'ticker'   ? 'block' : 'none';
+  document.getElementById('tab-prices').style.display   = tab === 'prices'   ? 'block' : 'none';
+  document.getElementById('tab-wildcard').style.display = tab === 'wildcard' ? 'block' : 'none';
 
   // Load player list once when transfer tab first opened
   if (tab === 'transfers' && !allBootstrapPlayers.length) {
@@ -922,6 +1020,159 @@ function renderTicker(ticker, gwRange) {
       <td class="ticker-avgfdr" style="color:${avgColor};font-weight:700">${team.avg_fdr_6gw}</td>
     </tr>`;
   }).join('');
+}
+
+// ── PRICE CHANGES ──
+function priceRow(p, type) {
+  const net     = p.net_transfers;
+  const netStr  = (net > 0 ? '+' : '') + (net/1000).toFixed(0) + 'k';
+  const netCls  = net > 0 ? 'pos' : 'neg';
+  const arrow   = type === 'riser' ? '▲' : '▼';
+  return `<div class="price-row ${type}">
+    <div>
+      <div class="price-name">${arrow} ${p.name}</div>
+      <div class="price-team">${p.team_short || p.team} · ${p.pos} · £${p.price}m · ${p.form} form</div>
+    </div>
+    <div class="price-conf ${p.confidence}">${p.confidence}</div>
+    <div class="price-net ${netCls}">${netStr}</div>
+    <div class="price-val">£${p.price}m</div>
+  </div>`;
+}
+
+async function loadPrices() {
+  const btn = document.getElementById('prices-btn');
+  btn.disabled = true;
+  document.getElementById('prices-btn-txt').innerHTML = '<div class="spin"></div> LOADING...';
+  document.getElementById('prices-error').style.display = 'none';
+
+  try {
+    const res  = await fetch(`${API}/api/price-changes`);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+
+    document.getElementById('risers-list').innerHTML =
+      json.risers.map(p => priceRow(p, 'riser')).join('') ||
+      '<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:12px">No strong risers detected</div>';
+
+    document.getElementById('fallers-list').innerHTML =
+      json.fallers.map(p => priceRow(p, 'faller')).join('') ||
+      '<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:12px">No strong fallers detected</div>';
+
+    document.getElementById('prices-content').style.display = 'block';
+    document.getElementById('prices-btn-txt').innerHTML = '↻ Refresh';
+
+  } catch(e) {
+    document.getElementById('prices-error').style.display = 'block';
+    document.getElementById('prices-error').textContent = 'Error: ' + e.message;
+    document.getElementById('prices-btn-txt').innerHTML = '💰 LOAD PRICE PREDICTIONS';
+  }
+  btn.disabled = false;
+}
+
+function renderPricesInline(data) {
+  // Pre-populate price tab if data came with squad generation
+  if (!data || (!data.risers && !data.fallers)) return;
+  if (data.risers) {
+    document.getElementById('risers-list').innerHTML =
+      data.risers.map(p => priceRow({...p, team_short: p.team}, 'riser')).join('');
+  }
+  if (data.fallers) {
+    document.getElementById('fallers-list').innerHTML =
+      data.fallers.map(p => priceRow({...p, team_short: p.team}, 'faller')).join('');
+  }
+  document.getElementById('prices-content').style.display = 'block';
+}
+
+// ── WILDCARD OPTIMIZER ──
+let wcFormation = '4-3-3';
+
+function setWCF(btn, f) {
+  document.querySelectorAll('#tab-wildcard .seg').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  wcFormation = f;
+}
+
+async function runWildcard() {
+  const btn = document.getElementById('wc-btn');
+  btn.disabled = true;
+  document.getElementById('wc-btn-txt').innerHTML = '<div class="spin"></div> OPTIMISING 6GWs...';
+  document.getElementById('wc-error').style.display   = 'none';
+  document.getElementById('wc-results').style.display = 'none';
+
+  try {
+    const res  = await fetch(`${API}/api/wildcard/${wcFormation}`);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+    renderWildcard(json);
+    document.getElementById('wc-btn-txt').innerHTML = '↻ Regenerate';
+  } catch(e) {
+    document.getElementById('wc-error').style.display   = 'block';
+    document.getElementById('wc-error').textContent     = 'Error: ' + e.message;
+    document.getElementById('wc-btn-txt').innerHTML     = '🃏 BUILD WILDCARD SQUAD';
+  }
+  btn.disabled = false;
+}
+
+function renderWildcard(json) {
+  const { squad, briefing, gameweek } = json;
+  const { xi, bench, captain, vice_captain, total_value, bank,
+          formation, dgw_players, bgw_players } = squad;
+
+  document.getElementById('wc-val').textContent      = `£${total_value}m`;
+  document.getElementById('wc-bank').textContent     = `in bank: £${bank}m`;
+  document.getElementById('wc-cap').textContent      = captain.name;
+  document.getElementById('wc-cap-sub').textContent  = `${captain.team} · WC: ${captain.wc_score}`;
+  document.getElementById('wc-dgw').textContent      = dgw_players.length;
+  document.getElementById('wc-pitch-meta').textContent = `${formation} · GW${gameweek} → GW${gameweek+5}`;
+  document.getElementById('wc-briefing').textContent = briefing;
+
+  // Pitch
+  const gk  = xi.filter(p=>p.pos==='GK');
+  const def = xi.filter(p=>p.pos==='DEF');
+  const mid = xi.filter(p=>p.pos==='MID');
+  const fwd = xi.filter(p=>p.pos==='FWD');
+
+  function wcChip(p, isC, isV, sm=false) {
+    const dgwBadge = p.gw_type === 'DGW' ? '<span style="position:absolute;top:-5px;left:-5px;background:var(--green);color:#000;font-size:7px;font-weight:700;padding:1px 3px;border-radius:3px">2x</span>' : '';
+    return `<div class="pchip" style="position:relative">
+      <div class="pshirt s-${p.pos}${isC?' cap':''}${isV?' vc':''}" style="${sm?'width:38px;height:38px':''}">
+        ${dgwBadge}${p.pos}
+      </div>
+      <div class="pname">${p.name}</div>
+      <div class="pprice">£${p.price}m</div>
+    </div>`;
+  }
+
+  const row = ps => `<div class="prow">${ps.map(p=>wcChip(p,p.id===captain.id,p.id===vice_captain.id)).join('')}</div>`;
+  document.getElementById('wc-pitch').innerHTML = row(gk)+row(def)+row(mid)+row(fwd);
+  document.getElementById('wc-bench').innerHTML = bench.map(p=>wcChip(p,false,false,true)).join('');
+
+  // Squad list sorted by wc_score
+  const allPlayers = [...xi,...bench].sort((a,b)=>(b.wc_score||0)-(a.wc_score||0));
+  const momC = m => m>0.5?'up':m<-0.5?'dn':'fl';
+  const momS = m => (m>0?'+':'')+m.toFixed(1);
+  const fdrC = d => d<=2?'e':d===3?'m':'h';
+
+  document.getElementById('wc-squad-list').innerHTML = `<div class="pl-list">
+    <div class="pl-row" style="background:transparent;font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">
+      <div></div><div>Player</div>
+      <div class="cr hi">WC Score</div>
+      <div class="cr">Mom</div>
+      <div class="cr">FDR</div>
+    </div>
+    ${allPlayers.map(p => `<div class="pl-row">
+      <div class="pp s-${p.pos}" style="background:var(--bg4)">${p.pos}</div>
+      <div>
+        <div class="pn">${p.name}${p.gw_type==='DGW'?' <span style="color:var(--green);font-size:9px">2x</span>':''}</div>
+        <div class="pt2">${p.team} · £${p.price}m · ${p.form} form</div>
+      </div>
+      <div class="cr hi">${p.wc_score||0}</div>
+      <div class="mom ${momC(p.momentum||0)}">${momS(p.momentum||0)}</div>
+      <div class="cr"><span class="fdr ${fdrC(p.fdr_avg3||3)}">${p.fdr_avg3||3}</span></div>
+    </div>`).join('')}
+  </div>`;
+
+  document.getElementById('wc-results').style.display = 'block';
 }
 
 async function run(){
