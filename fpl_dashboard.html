@@ -642,7 +642,7 @@ function log(msg,type=''){
   const box=document.getElementById('log-box');
   const d=document.createElement('div');
   d.className='ll '+type;
-  d.innerHTML=`<span class="lp">${{ok:'✓',err:'✗','':'▸'}[type]||'▸'}</span><span>${msg}</span>`;
+  d.innerHTML=`<span class="lp">${{ok:'\u2713',err:'\u2717','':'\u25b8'}[type]||'\u25b8'}</span><span>${msg}</span>`;
   box.appendChild(d);box.scrollTop=box.scrollHeight;
 }
 
@@ -651,7 +651,7 @@ function momC(m){return m>0.5?'up':m<-0.5?'dn':'fl';}
 function momS(m){return m>0?'+'+m.toFixed(1):m.toFixed(1);}
 
 function chip(p,isC,isV,sm=false){
-  return `<div class="pchip"><div class="pshirt s-${p.pos}${isC?' cap':''}${isV?' vc':''}" style="${sm?'width:38px;height:38px':''}">${p.pos}</div><div class="pname">${p.name}</div><div class="pprice">£${p.price}m</div></div>`;
+  return `<div class="pchip"><div class="pshirt s-${p.pos}${isC?' cap':''}${isV?' vc':''}" style="${sm?'width:38px;height:38px':''}">${p.pos}</div><div class="pname">${p.name}</div><div class="pprice">\u00a3${p.price}m</div></div>`;
 }
 
 function plRow(p,extra=''){
@@ -660,7 +660,7 @@ function plRow(p,extra=''){
   return `<div class="pl-row" style="cursor:pointer" onclick="openPlayer(${pid},'${p.name}')" title="Click for deep-dive">
     <div class="pp s-${p.pos}" style="background:var(--bg4)">${p.pos}</div>
     <div><div class="pn">${p.name}</div><div class="pt2">${p.team}</div></div>
-    <div class="cr hi">${extra||('£'+p.price+'m')}</div>
+    <div class="cr hi">${extra||('\u00a3'+p.price+'m')}</div>
     <div class="mom ${momC(m)}">${momS(m)}</div>
     <div class="cr"><span class="fdr ${fdrC(fdr)}">${fdr}</span></div>
   </div>`;
@@ -673,8 +673,8 @@ function render(data){
   document.getElementById('gw-chip').textContent=`GW ${gameweek}`;
   document.getElementById('status-chip').textContent='LIVE';
   document.getElementById('status-chip').classList.add('live');
-  document.getElementById('s-val').textContent=`£${total_value}m`;
-  document.getElementById('s-bank').textContent=`in bank: £${bank}m`;
+  document.getElementById('s-val').textContent=`\u00a3${total_value}m`;
+  document.getElementById('s-bank').textContent=`in bank: \u00a3${bank}m`;
   document.getElementById('s-gw').textContent=gameweek;
   document.getElementById('s-cap').textContent=captain.name;
   document.getElementById('s-cap-sub').textContent=`${captain.team} · xPts ${captain.xpts}`;
@@ -699,7 +699,7 @@ function render(data){
   document.getElementById('cons-bar').style.width=(avgCons*10)+'%';
   document.getElementById('briefing').textContent=briefing;
   document.getElementById('squad-list').innerHTML=[...xi,...bench].map(p=>plRow(p)).join('');
-  document.getElementById('rankings').innerHTML=`<div class="pl-list">${(top_players||[]).slice(0,20).map(p=>`<div class="pl-row"><div class="pp s-${p.pos}" style="background:var(--bg4)">${p.pos}</div><div><div class="pn">${p.name}</div><div class="pt2">${p.team} · £${p.price}m · ${p.form} form</div></div><div class="cr hi">${p.xpts} xPts</div><div class="mom ${momC(p.momentum||0)}">${momS(p.momentum||0)}</div><div class="cr"><span class="fdr ${fdrC(p.fdr_avg3||3)}">${p.fdr_avg3||3}</span></div></div>`).join('')}</div>`;
+  document.getElementById('rankings').innerHTML=`<div class="pl-list">${(top_players||[]).slice(0,20).map(p=>`<div class="pl-row"><div class="pp s-${p.pos}" style="background:var(--bg4)">${p.pos}</div><div><div class="pn">${p.name}</div><div class="pt2">${p.team} · \u00a3${p.price}m · ${p.form} form</div></div><div class="cr hi">${p.xpts} xPts</div><div class="mom ${momC(p.momentum||0)}">${momS(p.momentum||0)}</div><div class="cr"><span class="fdr ${fdrC(p.fdr_avg3||3)}">${p.fdr_avg3||3}</span></div></div>`).join('')}</div>`;
   document.getElementById('gen-time').textContent='Generated: '+new Date(generated_at).toLocaleString();
   document.getElementById('results').style.display='block';
 }
@@ -772,7 +772,7 @@ function searchPlayers(query) {
   box.innerHTML = matches.map(p => `
     <div class="sr-item" onclick="addPlayer(${JSON.stringify(p).replace(/"/g,"&quot;")})">
       <span>${p.name} <span style="color:var(--muted)">${p.team}</span></span>
-      <span class="sr-pos">${p.pos} · £${p.price}m · ${p.form} form</span>
+      <span class="sr-pos">${p.pos} · \u00a3${p.price}m · ${p.form} form</span>
     </div>`).join('');
   box.style.display = 'block';
 }
@@ -813,7 +813,7 @@ function renderPicked() {
     <div class="picked-row">
       <div>
         <span class="picked-name">${p.name}</span>
-        <span class="picked-meta"> · ${p.team} · ${p.pos} · £${p.price}m</span>
+        <span class="picked-meta"> · ${p.team} · ${p.pos} · \u00a3${p.price}m</span>
       </div>
       <span class="picked-remove" onclick="removePlayer('${p.name}')">✕</span>
     </div>`).join('');
@@ -861,7 +861,7 @@ async function runTransfers() {
   }
 
   btn.disabled = false;
-  document.getElementById('tp-btn-txt').innerHTML = '⇄ ANALYSE TRANSFERS';
+  document.getElementById('tp-btn-txt').innerHTML = '\u21c4 ANALYSE TRANSFERS';
 }
 
 function renderTransfers(data) {
@@ -897,18 +897,18 @@ function renderTransfers(data) {
 
     html += `<div class="tr-card ${cardCls}">
       <div class="tr-player">
-        <div style="font-family:var(--mono);font-size:9px;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">▼ Out</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">\u25bc Out</div>
         <div class="tr-name">${t.out.name}</div>
-        <div class="tr-meta">${t.out.team} · £${t.out.price}m · ${t.out.form} form · ${outMom >= 0 ? '+' : ''}${outMom.toFixed(1)} momentum</div>
+        <div class="tr-meta">${t.out.team} · \u00a3${t.out.price}m · ${t.out.form} form · ${outMom >= 0 ? '+' : ''}${outMom.toFixed(1)} momentum</div>
         <div class="tr-meta" style="margin-top:2px">xPts: ${t.out.xpts} · FDR: ${t.out.fdr_avg3}</div>
       </div>
       <div class="tr-arrow">→</div>
       <div class="tr-player">
-        <div style="font-family:var(--mono);font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">▲ In</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">\u25b2 In</div>
         <div class="tr-name">${t.in.name}</div>
-        <div class="tr-meta">${t.in.team} · £${t.in.price}m · ${t.in.form} form · ${inMom >= 0 ? '+' : ''}${inMom.toFixed(1)} momentum</div>
+        <div class="tr-meta">${t.in.team} · \u00a3${t.in.price}m · ${t.in.form} form · ${inMom >= 0 ? '+' : ''}${inMom.toFixed(1)} momentum</div>
         <div class="tr-meta" style="margin-top:2px">xPts: ${t.in.xpts} · FDR: ${t.in.fdr_avg3}</div>
-        ${isHit ? `<span class="tr-hit-badge ${worthy ? 'no' : 'yes'}">${worthy ? '✓ Hit worth it' : '✗ Hit not worth it'}</span>` : '<span class="tr-hit-badge no">✓ Free transfer</span>'}
+        ${isHit ? `<span class="tr-hit-badge ${worthy ? 'no' : 'yes'}">${worthy ? '\u2713 Hit worth it' : '\u2717 Hit not worth it'}</span>` : '<span class="tr-hit-badge no">\u2713 Free transfer</span>'}
       </div>
       <div class="tr-gain">
         <div class="tr-gain-val ${gainCls}">${gainSign}${gain.toFixed(1)}</div>
@@ -941,7 +941,7 @@ function renderDGW(dgwData) {
 
     const dgwHtml = hasDGW ? `
       <div>
-        <span class="dgw-badge dgw">↑ DOUBLE GAMEWEEK — ${gw.dgw.length} team${gw.dgw.length>1?'s':''}</span>
+        <span class="dgw-badge dgw">\u2191 DOUBLE GAMEWEEK — ${gw.dgw.length} team${gw.dgw.length>1?'s':''}</span>
         <div class="dgw-teams">
           ${gw.dgw.map(t => `
             <div class="dgw-team">
@@ -953,7 +953,7 @@ function renderDGW(dgwData) {
 
     const bgwHtml = hasBGW ? `
       <div style="margin-top:${hasDGW?'14px':'0'}">
-        <span class="dgw-badge bgw">↓ BLANK GAMEWEEK — ${gw.bgw.length} team${gw.bgw.length>1?'s':''}</span>
+        <span class="dgw-badge bgw">\u2193 BLANK GAMEWEEK — ${gw.bgw.length} team${gw.bgw.length>1?'s':''}</span>
         <div class="dgw-teams">
           ${gw.bgw.map(t => `
             <div class="dgw-team" style="border-color:rgba(255,82,82,0.2)">
@@ -978,7 +978,7 @@ const CHIP_LABELS = {
   bench_boost:    '💺 BB',
   triple_captain: '3️⃣ TC',
   free_hit:       '🎯 FH',
-  wildcard:       '🃏 WC',
+  wildcard:       '\U0001f0cf WC',
 };
 
 function renderChips(chipPlan) {
@@ -991,7 +991,7 @@ function renderChips(chipPlan) {
 
   // Top recommendations
   const chips = [
-    {key:'wildcard',        elGw:'chip-wc-gw', elReason:'chip-wc-reason', label:'🃏 Wildcard'},
+    {key:'wildcard',        elGw:'chip-wc-gw', elReason:'chip-wc-reason', label:'\U0001f0cf Wildcard'},
     {key:'free_hit',        elGw:'chip-fh-gw', elReason:'chip-fh-reason', label:'🎯 Free Hit'},
     {key:'bench_boost',     elGw:'chip-bb-gw', elReason:'chip-bb-reason', label:'💺 Bench Boost'},
     {key:'triple_captain',  elGw:'chip-tc-gw', elReason:'chip-tc-reason', label:'3️⃣ Triple Captain'},
@@ -1020,7 +1020,7 @@ function renderChips(chipPlan) {
       const isBest = gw.best_chip === c.key;
       return `<div class="chip-score ${cls}">
         <div class="chip-score-val">${d.score.toFixed(1)}</div>
-        <div class="chip-label">${c.label}${isBest ? ' ★' : ''}</div>
+        <div class="chip-label">${c.label}${isBest ? ' \u2605' : ''}</div>
       </div>`;
     }).join('');
 
@@ -1127,15 +1127,15 @@ function priceRow(p, type) {
   const net     = p.net_transfers;
   const netStr  = (net > 0 ? '+' : '') + (net/1000).toFixed(0) + 'k';
   const netCls  = net > 0 ? 'pos' : 'neg';
-  const arrow   = type === 'riser' ? '▲' : '▼';
+  const arrow   = type === 'riser' ? '\u25b2' : '\u25bc';
   return `<div class="price-row ${type}">
     <div>
       <div class="price-name">${arrow} ${p.name}</div>
-      <div class="price-team">${p.team_short || p.team} · ${p.pos} · £${p.price}m · ${p.form} form</div>
+      <div class="price-team">${p.team_short || p.team} · ${p.pos} · \u00a3${p.price}m · ${p.form} form</div>
     </div>
     <div class="price-conf ${p.confidence}">${p.confidence}</div>
     <div class="price-net ${netCls}">${netStr}</div>
-    <div class="price-val">£${p.price}m</div>
+    <div class="price-val">\u00a3${p.price}m</div>
   </div>`;
 }
 
@@ -1164,7 +1164,7 @@ async function loadPrices() {
   } catch(e) {
     document.getElementById('prices-error').style.display = 'block';
     document.getElementById('prices-error').textContent = 'Error: ' + e.message;
-    document.getElementById('prices-btn-txt').innerHTML = '💰 LOAD PRICE PREDICTIONS';
+    document.getElementById('prices-btn-txt').innerHTML = '\U0001f4b0 LOAD PRICE PREDICTIONS';
   }
   btn.disabled = false;
 }
@@ -1208,7 +1208,7 @@ async function runWildcard() {
   } catch(e) {
     document.getElementById('wc-error').style.display   = 'block';
     document.getElementById('wc-error').textContent     = 'Error: ' + e.message;
-    document.getElementById('wc-btn-txt').innerHTML     = '🃏 BUILD WILDCARD SQUAD';
+    document.getElementById('wc-btn-txt').innerHTML     = '\U0001f0cf BUILD WILDCARD SQUAD';
   }
   btn.disabled = false;
 }
@@ -1218,8 +1218,8 @@ function renderWildcard(json) {
   const { xi, bench, captain, vice_captain, total_value, bank,
           formation, dgw_players, bgw_players } = squad;
 
-  document.getElementById('wc-val').textContent      = `£${total_value}m`;
-  document.getElementById('wc-bank').textContent     = `in bank: £${bank}m`;
+  document.getElementById('wc-val').textContent      = `\u00a3${total_value}m`;
+  document.getElementById('wc-bank').textContent     = `in bank: \u00a3${bank}m`;
   document.getElementById('wc-cap').textContent      = captain.name;
   document.getElementById('wc-cap-sub').textContent  = `${captain.team} · WC: ${captain.wc_score}`;
   document.getElementById('wc-dgw').textContent      = dgw_players.length;
@@ -1239,7 +1239,7 @@ function renderWildcard(json) {
         ${dgwBadge}${p.pos}
       </div>
       <div class="pname">${p.name}</div>
-      <div class="pprice">£${p.price}m</div>
+      <div class="pprice">\u00a3${p.price}m</div>
     </div>`;
   }
 
@@ -1264,7 +1264,7 @@ function renderWildcard(json) {
       <div class="pp s-${p.pos}" style="background:var(--bg4)">${p.pos}</div>
       <div>
         <div class="pn">${p.name}${p.gw_type==='DGW'?' <span style="color:var(--green);font-size:9px">2x</span>':''}</div>
-        <div class="pt2">${p.team} · £${p.price}m · ${p.form} form</div>
+        <div class="pt2">${p.team} · \u00a3${p.price}m · ${p.form} form</div>
       </div>
       <div class="cr hi">${p.wc_score||0}</div>
       <div class="mom ${momC(p.momentum||0)}">${momS(p.momentum||0)}</div>
@@ -1324,7 +1324,7 @@ function renderModal(p, verdict) {
   // Header
   document.getElementById('modal-name').textContent = p.full_name || p.name;
   document.getElementById('modal-meta').textContent =
-    `${p.team} · ${p.pos} · £${p.price}m · ${p.selected_pct}% owned · ${p.status.toUpperCase()}${p.news ? ' — ' + p.news : ''}`;
+    `${p.team} · ${p.pos} · \u00a3${p.price}m · ${p.selected_pct}% owned · ${p.status.toUpperCase()}${p.news ? ' — ' + p.news : ''}`;
 
   // Verdict box
   const vbox = document.getElementById('modal-verdict-box');
@@ -1335,7 +1335,7 @@ function renderModal(p, verdict) {
   document.getElementById('modal-verdict-text').textContent  = reasoning;
 
   // Stats
-  document.getElementById('m-price').textContent = `£${p.price}m`;
+  document.getElementById('m-price').textContent = `\u00a3${p.price}m`;
   document.getElementById('m-form').textContent  = p.form;
   document.getElementById('m-ppg').textContent   = p.ppg;
   document.getElementById('m-own').textContent   = p.selected_pct + '%';
@@ -1398,7 +1398,7 @@ function renderModal(p, verdict) {
           <span style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:6px">${a.team}</span>
         </div>
         <div style="font-family:var(--mono);font-size:11px;text-align:right">
-          <span style="color:var(--green)">£${a.price}m</span>
+          <span style="color:var(--green)">\u00a3${a.price}m</span>
           <span style="color:var(--muted);margin-left:8px">${a.form} form</span>
         </div>
       </div>`).join('');
@@ -1429,12 +1429,12 @@ async function run(){
     log('Data enriched + squad built','ok');
     log('Claude AI briefing ready','ok');
     render(json.data);
-    document.getElementById('btn-txt').innerHTML='↯ REGENERATE';
+    document.getElementById('btn-txt').innerHTML='\u21af REGENERATE';
   }catch(e){
     log('Error: '+e.message,'err');
     document.getElementById('err-msg').textContent=e.message;
     document.getElementById('err').style.display='block';
-    document.getElementById('btn-txt').innerHTML='↯ TRY AGAIN';
+    document.getElementById('btn-txt').innerHTML='\u21af TRY AGAIN';
   }
   btn.disabled=false;
 }
