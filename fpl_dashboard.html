@@ -1316,11 +1316,9 @@ function fdrColor(fdr) {
 
 function renderModal(p, verdict) {
   // Parse verdict
-  const lines      = verdict.trim().split('
-');
+  const lines      = verdict.trim().split('\n');
   const label      = lines[0].trim().toUpperCase();
-  const reasoning  = lines.slice(1).join('
-').trim();
+  const reasoning  = lines.slice(1).join('\n').trim();
   const vstyle     = verdictStyle(label);
 
   // Header
