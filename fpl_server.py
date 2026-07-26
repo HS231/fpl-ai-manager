@@ -63,6 +63,115 @@ def cached_get(url):
 
 
 # ════════════════════════════════════════════════════════════
+#  DOUBLE/BLANK GAMEWEEK DETECTOR
+# ════════════════════════════════════════════════════════════
+
+def detect_dgw_bgw(fixtures: list, teams: list, total_gws: int = 38) -> dict:
+    """
+    Scans all fixtures and detects double and blank gameweeks per team.
+
+    Returns a dict:
+    {
+        team_id: {
+            gw_id: {
+                "fixtures": int,      # 0=blank, 1=normal, 2+=double
+                "type": "BGW"|"DGW"|"normal",
+                "opponents": [...],   # opponent short names
+                "is_home": [...],     # home/away for each fixture
+                "fdr": [...],         # difficulty per fixture
+            }
+        }
+    }
+    """
+    team_map = {t["id"]: t for t in teams}
+
+    # Build fixture count per team per GW
+    schedule = {}
+    for t in teams:
+        schedule[t["id"]] = {}
+
+    for f in fixtures:
+        gw = f.get("event")
+        if not gw:
+            continue
+        tid_h = f["team_h"]
+        tid_a = f["team_a"]
+
+        # Home team
+        if tid_h not in schedule:
+            schedule[tid_h] = {}
+        if gw not in schedule[tid_h]:
+            schedule[tid_h][gw] = {"fixtures": 0, "opponents": [], "is_home": [], "fdr": []}
+        schedule[tid_h][gw]["fixtures"] += 1
+        schedule[tid_h][gw]["opponents"].append(team_map.get(tid_a, {}).get("short_name", "?"))
+        schedule[tid_h][gw]["is_home"].append(True)
+        schedule[tid_h][gw]["fdr"].append(f["team_h_difficulty"])
+
+        # Away team
+        if tid_a not in schedule:
+            schedule[tid_a] = {}
+        if gw not in schedule[tid_a]:
+            schedule[tid_a][gw] = {"fixtures": 0, "opponents": [], "is_home": [], "fdr": []}
+        schedule[tid_a][gw]["fixtures"] += 1
+        schedule[tid_a][gw]["opponents"].append(team_map.get(tid_h, {}).get("short_name", "?"))
+        schedule[tid_a][gw]["is_home"].append(False)
+        schedule[tid_a][gw]["fdr"].append(f["team_a_difficulty"])
+
+    # Add type label and fill in blank GWs
+    for tid in schedule:
+        for gw in range(1, total_gws + 1):
+            if gw not in schedule[tid]:
+                schedule[tid][gw] = {
+                    "fixtures": 0,
+                    "opponents": [],
+                    "is_home": [],
+                    "fdr": [],
+                }
+            entry = schedule[tid][gw]
+            if entry["fixtures"] == 0:
+                entry["type"] = "BGW"
+            elif entry["fixtures"] >= 2:
+                entry["type"] = "DGW"
+            else:
+                entry["type"] = "normal"
+
+    return schedule
+
+
+def get_team_fixture_summary(schedule: dict, team_id: int, from_gw: int, num_gws: int = 6) -> list:
+    """
+    Returns a fixture summary for a team over the next N gameweeks.
+    Used for the dashboard fixture ticker.
+    """
+    result = []
+    team_sched = schedule.get(team_id, {})
+    for gw in range(from_gw, from_gw + num_gws):
+        entry = team_sched.get(gw, {"fixtures": 0, "type": "BGW", "opponents": [], "fdr": []})
+        result.append({
+            "gw":       gw,
+            "type":     entry["type"],
+            "fixtures": entry["fixtures"],
+            "opponents": entry["opponents"],
+            "fdr":      entry["fdr"],
+            "avg_fdr":  round(sum(entry["fdr"]) / len(entry["fdr"]), 1) if entry["fdr"] else 0,
+        })
+    return result
+
+
+def calc_dgw_xpts_multiplier(team_id: int, gw_id: int, schedule: dict) -> float:
+    """
+    Returns an xPts multiplier based on fixture count in the gameweek.
+    DGW = 1.85x (two fixtures but not quite 2x due to rotation/fatigue)
+    BGW = 0.0x  (no fixture = zero points)
+    Normal = 1.0x
+    """
+    team_sched = schedule.get(team_id, {})
+    gw_entry   = team_sched.get(gw_id, {})
+    gw_type    = gw_entry.get("type", "normal")
+    return {"DGW": 1.85, "BGW": 0.0, "normal": 1.0}.get(gw_type, 1.0)
+
+
+# ════════════════════════════════════════════════════════════
 #  ENRICHMENT FUNCTIONS  v2
 #  — momentum, consistency, rotation risk, home/away splits
 #  — set piece / penalty taker bonus
@@ -346,11 +455,17 @@ def calc_xpts(player: dict, fixture_list: list, team_data: dict) -> float:
     total += rot_pen
     total += min(1.5, sp_bonus)
 
-    # ── INJURY MULTIPLIER ──
-    # Apply chance of playing as a direct multiplier
-    # 75% doubtful almost always plays but may be managed — 0.85x
-    # 50% doubtful is a genuine risk — 0.50x
-    # 25% doubtful very unlikely — 0.20x
+    # ── DGW/BGW multiplier ──
+    # Applied before injury multiplier
+    # DGW: 1.85x — two fixtures but not 2x due to rotation/fatigue risk
+    # BGW: 0.0x  — no fixture, zero expected points
+    # Normal: 1.0x
+    gw_type  = player.get("gw_type", "normal")
+    dgw_mult = {"DGW": 1.85, "BGW": 0.0, "normal": 1.0}.get(gw_type, 1.0)
+    total   *= dgw_mult
+
+    # ── Injury/availability multiplier ──
+    # Applied after DGW — a doubtful player in a DGW is still risky
     chance = player.get("chance", None)
     status = player.get("status", "a")
     if status == "d" or (chance is not None and chance < 100):
@@ -376,6 +491,198 @@ def calc_differential_score(player: dict) -> float:
     owned = float(player.get("selected_pct") or 50)
     ownership_factor = max(0.1, (100 - owned) / 100)
     return round(min(10.0, xpts * ownership_factor * 0.4), 2)
+
+
+# ════════════════════════════════════════════════════════════
+#  CHIP ADVISOR
+#  Analyses next 10 GWs and recommends optimal chip usage
+# ════════════════════════════════════════════════════════════
+
+def score_bench_boost(gw_id: int, dgw_schedule: dict, teams: list) -> dict:
+    """
+    Bench Boost score for a given GW.
+    Best used in DGWs where as many teams as possible have 2 fixtures.
+    Score 0-10.
+    """
+    dgw_count = sum(
+        1 for tid, sched in dgw_schedule.items()
+        if sched.get(gw_id, {}).get("type") == "DGW"
+    )
+    bgw_count = sum(
+        1 for tid, sched in dgw_schedule.items()
+        if sched.get(gw_id, {}).get("type") == "BGW"
+    )
+    total_teams = len(teams)
+
+    # More DGW teams = better for bench boost
+    dgw_ratio = dgw_count / max(total_teams, 1)
+    score     = min(10.0, dgw_ratio * 20)
+
+    # Penalise if many teams have blanks
+    score -= (bgw_count / max(total_teams, 1)) * 5
+    score  = max(0.0, round(score, 1))
+
+    return {
+        "score":     score,
+        "dgw_teams": dgw_count,
+        "bgw_teams": bgw_count,
+        "verdict":   "Excellent" if score >= 7 else "Good" if score >= 4 else "Poor",
+        "reason":    f"{dgw_count} teams have double fixtures this GW" if dgw_count > 0
+                     else "No double gameweeks — avoid Bench Boost this GW",
+    }
+
+
+def score_triple_captain(gw_id: int, dgw_schedule: dict, enriched_players: list) -> dict:
+    """
+    Triple Captain score for a given GW.
+    Best used when your best player has a DGW with easy fixtures.
+    Score 0-10.
+    """
+    # Find best player candidates — top 5 by xpts
+    top_players = sorted(enriched_players, key=lambda x: x.get("xpts", 0), reverse=True)[:10]
+
+    best_tc_player = None
+    best_tc_score  = 0
+
+    for p in top_players:
+        tid      = p.get("team_id")
+        gw_entry = dgw_schedule.get(tid, {}).get(gw_id, {})
+        gw_type  = gw_entry.get("type", "normal")
+        avg_fdr  = sum(gw_entry.get("fdr", [3])) / max(len(gw_entry.get("fdr", [3])), 1)
+
+        # Score this player as TC candidate
+        tc_score = 0
+        if gw_type == "DGW":
+            tc_score += 6          # huge bonus for double fixture
+        elif gw_type == "BGW":
+            tc_score -= 10         # disqualify — no fixture
+        tc_score += (5 - avg_fdr) * 0.8   # easier fixture = higher score
+        tc_score += p.get("form", 0) * 0.3
+
+        if tc_score > best_tc_score:
+            best_tc_score  = tc_score
+            best_tc_player = p
+
+    normalised = min(10.0, max(0.0, round(best_tc_score, 1)))
+
+    return {
+        "score":       normalised,
+        "best_player": best_tc_player["name"] if best_tc_player else "Unknown",
+        "best_team":   best_tc_player["team"] if best_tc_player else "",
+        "gw_type":     dgw_schedule.get(best_tc_player["team_id"] if best_tc_player else 0, {}).get(gw_id, {}).get("type", "normal"),
+        "verdict":     "Excellent" if normalised >= 7 else "Good" if normalised >= 4 else "Poor",
+        "reason":      f"Triple captain {best_tc_player['name']} ({best_tc_player['team']}) — {'DGW: two fixtures' if dgw_schedule.get(best_tc_player['team_id'] if best_tc_player else 0, {}).get(gw_id, {}).get('type') == 'DGW' else 'single fixture'}" if best_tc_player else "No strong TC candidate",
+    }
+
+
+def score_free_hit(gw_id: int, dgw_schedule: dict, teams: list) -> dict:
+    """
+    Free Hit score for a given GW.
+    Best used in blank gameweeks where many teams don't have fixtures.
+    Score 0-10.
+    """
+    bgw_count = sum(
+        1 for tid, sched in dgw_schedule.items()
+        if sched.get(gw_id, {}).get("type") == "BGW"
+    )
+    total_teams = len(teams)
+    bgw_ratio   = bgw_count / max(total_teams, 1)
+    score       = min(10.0, round(bgw_ratio * 25, 1))
+
+    return {
+        "score":     score,
+        "bgw_teams": bgw_count,
+        "verdict":   "Excellent" if score >= 7 else "Good" if score >= 4 else "Poor",
+        "reason":    f"{bgw_count} teams have no fixture — Free Hit lets you field a full team"
+                     if bgw_count > 0 else "No blank gameweeks — save Free Hit for a BGW",
+    }
+
+
+def score_wildcard(gw_id: int, dgw_schedule: dict, enriched_players: list, current_gw: int) -> dict:
+    """
+    Wildcard score for a given GW.
+    Best used before a long run of good fixtures or when squad is poor.
+    Score 0-10.
+    Higher score = better time to wildcard.
+    """
+    # Look 6 GWs ahead from this point — how good are the fixtures?
+    future_gws = range(gw_id, min(gw_id + 6, 39))
+
+    # Count DGWs ahead — more doubles = better time to wildcard into
+    upcoming_dgw = sum(
+        1 for gw in future_gws
+        for tid, sched in dgw_schedule.items()
+        if sched.get(gw, {}).get("type") == "DGW"
+    )
+
+    # Score based on upcoming DGWs and how early in the season
+    gws_remaining = 38 - gw_id
+    score = min(10.0, (upcoming_dgw * 1.5) + (gws_remaining / 38 * 3))
+
+    # Early season wildcards are less valuable (more GWs ahead to use it)
+    # Late season wildcards are more urgent if squad is bad
+    urgency = "High" if gws_remaining < 15 else "Medium" if gws_remaining < 25 else "Low"
+
+    return {
+        "score":         round(score, 1),
+        "upcoming_dgws": upcoming_dgw,
+        "gws_remaining": gws_remaining,
+        "urgency":       urgency,
+        "verdict":       "Excellent" if score >= 7 else "Good" if score >= 4 else "Poor",
+        "reason":        f"{upcoming_dgw} double gameweeks in the next 6 GWs — good time to wildcard in"
+                         if upcoming_dgw > 0 else "No doubles ahead — consider waiting for a better window",
+    }
+
+
+def build_chip_plan(gw_id: int, dgw_schedule: dict, enriched_players: list,
+                    teams: list, num_gws: int = 10) -> dict:
+    """
+    Builds a full chip plan for the next N gameweeks.
+    Returns scores for each chip per GW and an overall recommendation.
+    """
+    plan = []
+    for gw in range(gw_id, min(gw_id + num_gws, 39)):
+        bb  = score_bench_boost(gw, dgw_schedule, teams)
+        tc  = score_triple_captain(gw, dgw_schedule, enriched_players)
+        fh  = score_free_hit(gw, dgw_schedule, teams)
+        wc  = score_wildcard(gw, dgw_schedule, enriched_players, gw_id)
+
+        # Best chip this GW
+        chip_scores = {
+            "bench_boost":     bb["score"],
+            "triple_captain":  tc["score"],
+            "free_hit":        fh["score"],
+            "wildcard":        wc["score"],
+        }
+        best_chip  = max(chip_scores, key=chip_scores.get)
+        best_score = chip_scores[best_chip]
+
+        plan.append({
+            "gw":             gw,
+            "bench_boost":    bb,
+            "triple_captain": tc,
+            "free_hit":       fh,
+            "wildcard":       wc,
+            "best_chip":      best_chip if best_score >= 4 else None,
+            "best_score":     best_score,
+        })
+
+    # Overall recommendation — best single GW per chip
+    recommendations = {}
+    for chip in ["bench_boost", "triple_captain", "free_hit", "wildcard"]:
+        best_gw = max(plan, key=lambda x: x[chip]["score"])
+        recommendations[chip] = {
+            "gw":      best_gw["gw"],
+            "score":   best_gw[chip]["score"],
+            "verdict": best_gw[chip]["verdict"],
+            "reason":  best_gw[chip]["reason"],
+        }
+
+    return {
+        "plan":            plan,
+        "recommendations": recommendations,
+        "current_gw":      gw_id,
+    }
 
 
 # ════════════════════════════════════════════════════════════
@@ -665,7 +972,17 @@ Write a punchy, expert weekly manager briefing of around 220 words covering:
 Write in second person. Be specific with names, teams, fixtures.
 Sound like a knowledgeable friend. Plain prose only, no markdown, no bullet points."""
 
+    # Build DGW/BGW context for AI
+    dgw_players_in_xi = [p for p in xi if p.get("gw_type") == "DGW"]
+    bgw_players_in_xi = [p for p in xi if p.get("gw_type") == "BGW"]
+    dgw_str = ", ".join([f"{p['name']} ({p['team']}, {p.get('fixture_count',2)} fixtures)" for p in dgw_players_in_xi]) or "None"
+    bgw_str = ", ".join([f"{p['name']} ({p['team']})" for p in bgw_players_in_xi]) or "None"
+
+    prompt += f"\n\nDOUBLE GAMEWEEK PLAYERS IN YOUR XI: {dgw_str}"
+    prompt += f"\nBLANK GAMEWEEK PLAYERS IN YOUR XI (score zero): {bgw_str}"
     prompt += "\n\nIMPORTANT: Always explicitly mention any doubtful/injured players and their risk. Never ignore injury flags."
+    prompt += "\nIf there are DGW players, highlight them as key assets — they can score double points."
+    prompt += "\nIf there are BGW players in the XI, flag this as a serious concern — they will score zero."
     prompt += "\n2026/27 SEASON RULES: Max 5 free transfers can be rolled. Two sets of chips (Wildcard x2, Free Hit x2, Bench Boost x2, Triple Captain x2). No AFCON transfer top-up this season. GW lockdown at 09:00 UK time day after final match."
     prompt += "\nPromoted clubs this season: Coventry City, Ipswich Town, Hull City. Players from these clubs have no Premier League track record — flag uncertainty when recommending them."
 
@@ -781,8 +1098,22 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
 
     top_candidates = sorted(candidates, key=candidate_score, reverse=True)[:200]
 
+    # Build full season DGW/BGW schedule
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Building DGW/BGW schedule...")
+    dgw_schedule = detect_dgw_bgw(fixtures, boot["teams"])
+
+    # Count DGW and BGW teams for this GW
+    dgw_teams = [tid for tid, sched in dgw_schedule.items() if sched.get(gw_id, {}).get("type") == "DGW"]
+    bgw_teams = [tid for tid, sched in dgw_schedule.items() if sched.get(gw_id, {}).get("type") == "BGW"]
+    if dgw_teams:
+        dgw_names = [team_map[tid]["short_name"] for tid in dgw_teams if tid in team_map]
+        print(f"  DGW teams in GW{gw_id}: {', '.join(dgw_names)}")
+    if bgw_teams:
+        bgw_names = [team_map[tid]["short_name"] for tid in bgw_teams if tid in team_map]
+        print(f"  BGW teams in GW{gw_id}: {', '.join(bgw_names)}")
+
     # Build next-fixture list per team with home/away context
-    # Structure: team_id -> [{"fdr": X, "is_home": bool, "event": N}, ...]
+    # Now includes ALL fixtures per GW (handles doubles)
     team_fixtures = {t["id"]: [] for t in boot["teams"]}
     for f in sorted(fixtures, key=lambda x: x.get("event") or 999):
         if f.get("finished"):
@@ -791,10 +1122,9 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
         if ev > gw_id + cfg.FORECAST_GWS:
             continue
         tid_h, tid_a = f["team_h"], f["team_a"]
-        if len(team_fixtures[tid_h]) < cfg.FORECAST_GWS:
-            team_fixtures[tid_h].append({"fdr": f["team_h_difficulty"], "is_home": True,  "event": ev})
-        if len(team_fixtures[tid_a]) < cfg.FORECAST_GWS:
-            team_fixtures[tid_a].append({"fdr": f["team_a_difficulty"], "is_home": False, "event": ev})
+        # Allow multiple fixtures per GW for DGW detection
+        team_fixtures[tid_h].append({"fdr": f["team_h_difficulty"], "is_home": True,  "event": ev})
+        team_fixtures[tid_a].append({"fdr": f["team_a_difficulty"], "is_home": False, "event": ev})
 
     def enrich_player(p):
         """Enrich a single player — called concurrently."""
@@ -848,7 +1178,9 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
                 "fdr_next2": fdr_list[1] if len(fdr_list) > 1 else 3,
                 "fdr_next3": fdr_list[2] if len(fdr_list) > 2 else 3,
                 "fdr_avg3":  round(sum(fdr_list[:3]) / max(len(fdr_list[:3]), 1), 1),
-                "next_home": fix_list[0]["is_home"] if fix_list else True,
+                "next_home":     fix_list[0]["is_home"] if fix_list else True,
+                "gw_type":       dgw_schedule.get(p["team"], {}).get(gw_id, {}).get("type", "normal"),
+                "fixture_count": dgw_schedule.get(p["team"], {}).get(gw_id, {}).get("fixtures", 1),
                 "momentum":           calc_momentum(gw_pts),
                 "consistency":        calc_consistency(gw_pts),
                 "rotation_risk":      calc_rotation_risk(gw_mins),
@@ -886,14 +1218,90 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Done.")
 
+    # Build chip plan
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Building chip advisor plan...")
+    chip_plan = build_chip_plan(gw_id, dgw_schedule, enriched, boot["teams"])
+
+    # Build DGW/BGW summary for frontend
+    team_map_short = {t["id"]: t["short_name"] for t in boot["teams"]}
+    dgw_bgw_summary = []
+    for gw_check in range(gw_id, min(gw_id + 10, 39)):
+        gw_dgw = []
+        gw_bgw = []
+        for tid, sched in dgw_schedule.items():
+            entry = sched.get(gw_check, {})
+            if entry.get("type") == "DGW":
+                gw_dgw.append({
+                    "team": team_map_short.get(tid, "?"),
+                    "opponents": entry.get("opponents", []),
+                    "fdr": entry.get("fdr", []),
+                })
+            elif entry.get("type") == "BGW":
+                gw_bgw.append({"team": team_map_short.get(tid, "?")})
+        if gw_dgw or gw_bgw:
+            dgw_bgw_summary.append({
+                "gw":   gw_check,
+                "dgw":  gw_dgw,
+                "bgw":  gw_bgw,
+            })
+
     return {
-        "gameweek":    gw_id,
-        "deadline":    deadline,
-        "squad":       squad,
-        "briefing":    briefing,
-        "top_players": sorted(enriched, key=lambda x: x["xpts"], reverse=True)[:30],
-        "generated_at": datetime.now().isoformat(),
+        "gameweek":       gw_id,
+        "deadline":       deadline,
+        "squad":          squad,
+        "briefing":       briefing,
+        "top_players":    sorted(enriched, key=lambda x: x["xpts"], reverse=True)[:30],
+        "dgw_bgw":        dgw_bgw_summary,
+        "chip_plan":      chip_plan,
+        "generated_at":   datetime.now().isoformat(),
     }
+
+
+# ════════════════════════════════════════════════════════════
+#  CHIP ADVISOR ENDPOINT
+# ════════════════════════════════════════════════════════════
+
+@app.route("/api/chips")
+@app.route("/api/chips/<int:from_gw>")
+def get_chip_plan(from_gw=None):
+    """Standalone chip advisor endpoint."""
+    try:
+        boot     = cached_get(BOOTSTRAP_URL)
+        fixtures = cached_get(FIXTURES_URL)
+
+        current_gw = next((e for e in boot["events"] if e["is_current"]), None)
+        next_gw    = next((e for e in boot["events"] if e["is_next"]), None)
+        active     = current_gw or next_gw
+        gw_id      = from_gw or (active["id"] if active else 1)
+
+        dgw_schedule = detect_dgw_bgw(fixtures, boot["teams"])
+
+        # Lightweight player list for TC scoring
+        team_map = {t["id"]: t for t in boot["teams"]}
+        pos_map  = {1:"GK",2:"DEF",3:"MID",4:"FWD"}
+        players  = []
+        for el in boot["elements"]:
+            if el.get("status") in ("u","i","s"):
+                continue
+            team = team_map.get(el["team"], {})
+            gw_entry = dgw_schedule.get(el["team"], {}).get(gw_id, {})
+            players.append({
+                "id":       el["id"],
+                "name":     el["web_name"],
+                "team":     team.get("short_name",""),
+                "team_id":  el["team"],
+                "pos":      pos_map.get(el["element_type"],"MID"),
+                "price":    el["now_cost"] / 10,
+                "form":     float(el.get("form") or 0),
+                "xpts":     float(el.get("ep_next") or 0),  # FPL's own prediction
+                "gw_type":  gw_entry.get("type","normal"),
+            })
+
+        chip_plan = build_chip_plan(gw_id, dgw_schedule, players, boot["teams"])
+        return jsonify({"ok": True, "chip_plan": chip_plan})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 # ════════════════════════════════════════════════════════════

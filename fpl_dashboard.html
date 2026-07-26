@@ -139,6 +139,26 @@ footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--border);displ
 footer span{font-family:var(--mono);font-size:10px;color:var(--muted);}
 .ref-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:7px;font-family:var(--mono);font-size:11px;cursor:pointer;transition:all 0.15s;}
 .ref-btn:hover{border-color:var(--border2);color:var(--green);}
+.dgw-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:10px;}
+.dgw-card.has-dgw{border-color:rgba(0,230,118,0.3);}
+.dgw-card.has-bgw{border-color:rgba(255,82,82,0.3);}
+.dgw-gw{font-family:var(--display);font-size:22px;letter-spacing:2px;margin-bottom:10px;}
+.dgw-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:500;margin-bottom:10px;margin-right:6px;}
+.dgw-badge.dgw{background:rgba(0,230,118,0.12);color:var(--green);border:1px solid rgba(0,230,118,0.3);}
+.dgw-badge.bgw{background:rgba(255,82,82,0.12);color:var(--red);border:1px solid rgba(255,82,82,0.3);}
+.dgw-teams{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.dgw-team{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-family:var(--mono);font-size:11px;}
+.dgw-team .team-name{color:var(--text);font-weight:500;}
+.dgw-team .team-opp{color:var(--muted);margin-top:2px;font-size:10px;}
+.chip-row{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:8px;display:grid;grid-template-columns:60px 1fr repeat(4,90px);align-items:center;gap:12px;}
+.chip-gw{font-family:var(--display);font-size:20px;letter-spacing:1px;color:var(--text);}
+.chip-score{text-align:center;font-family:var(--mono);font-size:11px;}
+.chip-score-val{font-size:16px;font-weight:700;font-family:var(--display);}
+.chip-score.excellent .chip-score-val{color:var(--green);}
+.chip-score.good .chip-score-val{color:var(--amber);}
+.chip-score.poor .chip-score-val{color:var(--muted);}
+.chip-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+.chip-best{font-family:var(--mono);font-size:10px;color:var(--green);background:rgba(0,230,118,0.08);border:1px solid var(--border2);border-radius:5px;padding:3px 8px;}
 </style>
 </head>
 <body>
@@ -165,6 +185,8 @@ footer span{font-family:var(--mono);font-size:10px;color:var(--muted);}
     <div class="tab-row">
       <button class="tab on" onclick="switchTab('squad',this)">↯ Squad Builder</button>
       <button class="tab" onclick="switchTab('transfers',this)">⇄ Transfer Planner</button>
+      <button class="tab" onclick="switchTab('dgw',this)">📅 DGW / BGW</button>
+      <button class="tab" onclick="switchTab('chips',this)">♟ Chip Advisor</button>
     </div>
 
     <div id="tab-squad">
@@ -244,6 +266,59 @@ footer span{font-family:var(--mono);font-size:10px;color:var(--muted);}
   </div>
 
     </div><!-- end tab-squad -->
+
+  <!-- ── DGW/BGW TAB ── -->
+  <div id="tab-dgw" style="display:none">
+    <div style="max-width:900px;margin:0 auto">
+      <div class="sec-head">Double &amp; Blank Gameweeks — Next 10 GWs</div>
+      <div id="dgw-empty" style="font-family:var(--mono);font-size:13px;color:var(--muted);padding:24px;text-align:center">
+        Generate a squad first to load DGW/BGW data.
+      </div>
+      <div id="dgw-list"></div>
+    </div>
+  </div>
+
+  <!-- ── CHIP ADVISOR TAB ── -->
+  <div id="tab-chips" style="display:none">
+    <div style="max-width:1000px;margin:0 auto">
+
+      <!-- Recommendations row -->
+      <div class="sec-head">Optimal chip windows — next 10 gameweeks</div>
+      <div id="chip-empty" style="font-family:var(--mono);font-size:13px;color:var(--muted);padding:24px;text-align:center">
+        Generate a squad first to load chip recommendations.
+      </div>
+
+      <!-- Top recommendations -->
+      <div id="chip-recs" style="display:none">
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:32px">
+          <div class="sc" id="chip-wc">
+            <div class="sl">🃏 Wildcard</div>
+            <div class="sv" id="chip-wc-gw" style="font-size:20px">GW —</div>
+            <div class="ss" id="chip-wc-reason">—</div>
+          </div>
+          <div class="sc" id="chip-fh">
+            <div class="sl">🎯 Free Hit</div>
+            <div class="sv" id="chip-fh-gw" style="font-size:20px">GW —</div>
+            <div class="ss" id="chip-fh-reason">—</div>
+          </div>
+          <div class="sc" id="chip-bb">
+            <div class="sl">💺 Bench Boost</div>
+            <div class="sv" id="chip-bb-gw" style="font-size:20px">GW —</div>
+            <div class="ss" id="chip-bb-reason">—</div>
+          </div>
+          <div class="sc" id="chip-tc">
+            <div class="sl">3️⃣ Triple Captain</div>
+            <div class="sv" id="chip-tc-gw" style="font-size:20px">GW —</div>
+            <div class="ss" id="chip-tc-reason">—</div>
+          </div>
+        </div>
+
+        <!-- GW by GW plan -->
+        <div class="sec-head">Gameweek-by-gameweek breakdown</div>
+        <div id="chip-plan-list"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- ── TRANSFER PLANNER TAB ── -->
   <div id="tab-transfers" style="display:none">
@@ -397,6 +472,8 @@ async function switchTab(tab, btn) {
   btn.classList.add('on');
   document.getElementById('tab-squad').style.display     = tab === 'squad'     ? 'block' : 'none';
   document.getElementById('tab-transfers').style.display = tab === 'transfers' ? 'block' : 'none';
+  document.getElementById('tab-dgw').style.display       = tab === 'dgw'       ? 'block' : 'none';
+  document.getElementById('tab-chips').style.display     = tab === 'chips'     ? 'block' : 'none';
 
   // Load player list once when transfer tab first opened
   if (tab === 'transfers' && !allBootstrapPlayers.length) {
@@ -602,6 +679,120 @@ function renderTransfers(data) {
 
   document.getElementById('transfer-list').innerHTML  = html;
   document.getElementById('tp-results').style.display = 'block';
+}
+
+function renderDGW(dgwData) {
+  const list = document.getElementById('dgw-list');
+  const empty = document.getElementById('dgw-empty');
+
+  if (!dgwData || !dgwData.length) {
+    empty.style.display = 'block';
+    empty.textContent = 'No double or blank gameweeks detected in the next 10 GWs. All teams playing normally.';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  list.innerHTML = dgwData.map(gw => {
+    const hasDGW = gw.dgw && gw.dgw.length > 0;
+    const hasBGW = gw.bgw && gw.bgw.length > 0;
+    const cardCls = hasDGW && hasBGW ? 'has-dgw has-bgw' : hasDGW ? 'has-dgw' : 'has-bgw';
+
+    const dgwHtml = hasDGW ? `
+      <div>
+        <span class="dgw-badge dgw">↑ DOUBLE GAMEWEEK — ${gw.dgw.length} team${gw.dgw.length>1?'s':''}</span>
+        <div class="dgw-teams">
+          ${gw.dgw.map(t => `
+            <div class="dgw-team">
+              <div class="team-name">${t.team}</div>
+              <div class="team-opp">vs ${t.opponents.join(' + ')} · FDR ${t.fdr.join('/')}</div>
+            </div>`).join('')}
+        </div>
+      </div>` : '';
+
+    const bgwHtml = hasBGW ? `
+      <div style="margin-top:${hasDGW?'14px':'0'}">
+        <span class="dgw-badge bgw">↓ BLANK GAMEWEEK — ${gw.bgw.length} team${gw.bgw.length>1?'s':''}</span>
+        <div class="dgw-teams">
+          ${gw.bgw.map(t => `
+            <div class="dgw-team" style="border-color:rgba(255,82,82,0.2)">
+              <div class="team-name" style="color:var(--red)">${t.team}</div>
+              <div class="team-opp" style="color:var(--muted)">No fixture</div>
+            </div>`).join('')}
+        </div>
+      </div>` : '';
+
+    return `<div class="dgw-card ${cardCls}">
+      <div class="dgw-gw">GW ${gw.gw}</div>
+      ${dgwHtml}${bgwHtml}
+    </div>`;
+  }).join('');
+}
+
+function chipScoreClass(score) {
+  return score >= 7 ? 'excellent' : score >= 4 ? 'good' : 'poor';
+}
+
+const CHIP_LABELS = {
+  bench_boost:    '💺 BB',
+  triple_captain: '3️⃣ TC',
+  free_hit:       '🎯 FH',
+  wildcard:       '🃏 WC',
+};
+
+function renderChips(chipPlan) {
+  if (!chipPlan) return;
+  const recs  = chipPlan.recommendations;
+  const plan  = chipPlan.plan;
+
+  document.getElementById('chip-empty').style.display = 'none';
+  document.getElementById('chip-recs').style.display  = 'block';
+
+  // Top recommendations
+  const chips = [
+    {key:'wildcard',        elGw:'chip-wc-gw', elReason:'chip-wc-reason', label:'🃏 Wildcard'},
+    {key:'free_hit',        elGw:'chip-fh-gw', elReason:'chip-fh-reason', label:'🎯 Free Hit'},
+    {key:'bench_boost',     elGw:'chip-bb-gw', elReason:'chip-bb-reason', label:'💺 Bench Boost'},
+    {key:'triple_captain',  elGw:'chip-tc-gw', elReason:'chip-tc-reason', label:'3️⃣ Triple Captain'},
+  ];
+
+  chips.forEach(c => {
+    const rec = recs[c.key];
+    if (!rec) return;
+    document.getElementById(c.elGw).textContent     = `GW ${rec.gw}`;
+    document.getElementById(c.elReason).textContent = `${rec.verdict} · ${rec.reason}`;
+  });
+
+  // GW by GW plan
+  const listEl = document.getElementById('chip-plan-list');
+  listEl.innerHTML = plan.map(gw => {
+    const chips_data = [
+      {key:'bench_boost',    label:'BB'},
+      {key:'triple_captain', label:'TC'},
+      {key:'free_hit',       label:'FH'},
+      {key:'wildcard',       label:'WC'},
+    ];
+
+    const chipCols = chips_data.map(c => {
+      const d     = gw[c.key];
+      const cls   = chipScoreClass(d.score);
+      const isBest = gw.best_chip === c.key;
+      return `<div class="chip-score ${cls}">
+        <div class="chip-score-val">${d.score.toFixed(1)}</div>
+        <div class="chip-label">${c.label}${isBest ? ' ★' : ''}</div>
+      </div>`;
+    }).join('');
+
+    const bestBadge = gw.best_chip
+      ? `<span class="chip-best">${CHIP_LABELS[gw.best_chip]} recommended</span>`
+      : '';
+
+    return `<div class="chip-row">
+      <div class="chip-gw">GW${gw.gw}</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted)">${bestBadge}</div>
+      ${chipCols}
+    </div>`;
+  }).join('');
 }
 
 async function run(){
