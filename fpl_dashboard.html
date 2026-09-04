@@ -1623,24 +1623,32 @@ async function runTransfers(){
 
 function renderTransfers(json){
   const transfers = json.transfers||[];
-  document.getElementById('transfer-list').innerHTML = transfers.slice(0,10).map((t,i)=>`
-    <div class="transfer-card">
+  document.getElementById('transfer-list').innerHTML = transfers.slice(0,10).map((t,i)=>{
+    const out_name  = t.out_name || (t.out && t.out.name) || '?';
+    const in_name   = t.in_name  || (t.in  && t.in.name)  || '?';
+    const in_price  = t.in_price || (t.in  && t.in.price) || '?';
+    const in_pos    = t.in_pos   || (t.in  && t.in.pos)   || '?';
+    const in_xpts   = t.in_xpts  || (t.in  && t.in.xpts)  || '?';
+    const gain      = t.xpts_gain || t.net_gain || 0;
+    const is_hit    = t.hit_required || t.is_hit || false;
+    return `<div class="transfer-card">
       <div class="tc-rank">${i+1}</div>
       <div>
         <div class="tc-arrow out">\u2193</div>
-        <div style="font-size:10px;color:var(--muted)">${t.out_name}</div>
+        <div style="font-size:10px;color:var(--muted)">${out_name}</div>
       </div>
       <div>
         <div class="tc-arrow in">\u2191</div>
-        <div style="font-size:10px;color:var(--muted)">${t.in_name}</div>
+        <div style="font-size:10px;color:var(--muted)">${in_name}</div>
       </div>
       <div class="tc-info">
-        <div class="tc-name">${t.in_name} IN</div>
-        <div class="tc-meta">\u00a3${t.in_price}m \u00b7 ${t.in_pos} \u00b7 xPts ${t.in_xpts}</div>
+        <div class="tc-name">${in_name} IN</div>
+        <div class="tc-meta">\u00a3${in_price}m \u00b7 ${in_pos} \u00b7 xPts ${in_xpts}</div>
       </div>
-      <div class="tc-gain">+${(t.xpts_gain||0).toFixed(1)}</div>
-      <span class="tc-hit-badge ${t.is_hit?'hit':'free'}">${t.is_hit?'-4 hit':'Free'}</span>
-    </div>`).join('');
+      <div class="tc-gain">+${parseFloat(gain).toFixed(1)}</div>
+      <span class="tc-hit-badge ${is_hit?'hit':'free'}">${is_hit?'-4 hit':'Free'}</span>
+    </div>`;
+  }).join('');
   if(json.briefing){
     document.getElementById('tp-briefing-text').textContent=json.briefing;
     document.getElementById('tp-briefing').style.display='block';
