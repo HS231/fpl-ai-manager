@@ -2288,7 +2288,12 @@ def get_transfers():
     """
     try:
         body          = request.get_json()
-        current_names = [n.lower().strip() for n in body.get("players", [])]
+        # Accept both "players" and "squad" keys for compatibility
+        raw_squad = body.get("players") or body.get("squad", "")
+        if isinstance(raw_squad, str):
+            current_names = [n.lower().strip() for n in raw_squad.split("\n") if n.strip()]
+        else:
+            current_names = [n.lower().strip() for n in raw_squad]
         bank          = float(body.get("bank", 0))
         free_transfers = int(body.get("free_transfers", 1))
 
