@@ -2292,31 +2292,37 @@ def get_transfers():
         bank          = float(body.get("bank", 0))
         free_transfers = int(body.get("free_transfers", 1))
 
-        # Load full enriched dataset
-        data    = build_full_dataset()
-        players = data["top_players"]
+        # Transfer planner is fully self-contained — does not need squad builder cache
+        boot       = cached_get(BOOTSTRAP_URL)
+        boot_map   = {el["id"]: el for el in boot["elements"]}
+        team_map_b = {t["id"]: t  for t in boot["teams"]}
+        pos_map_b  = {1:"GK",2:"DEF",3:"MID",4:"FWD"}
 
-        # Load full dataset — all_players contains top 150 enriched
-        all_data    = build_full_dataset()
-        all_players = all_data["top_players"]
-        # Also include bootstrap elements for name matching against full 700+ player list
-        boot        = cached_get(BOOTSTRAP_URL)
-        boot_map    = {el["id"]: el for el in boot["elements"]}
-        team_map_b  = {t["id"]: t  for t in boot["teams"]}
-        pos_map_b   = {1:"GK",2:"DEF",3:"MID",4:"FWD"}
-
-        # Build a lightweight lookup of ALL players for name matching
-        all_names_pool = []
+        # Build lightweight player list from bootstrap — fast, no GW history needed
+        all_players = []
         for el in boot["elements"]:
-            all_names_pool.append({
-                "id":        el["id"],
-                "name":      el["web_name"],
-                "full_name": f"{el['first_name']} {el['second_name']}",
-                "pos":       pos_map_b.get(el["element_type"], "MID"),
-                "team":      team_map_b.get(el["team"], {}).get("short_name", ""),
-                "price":     el["now_cost"] / 10,
-                "form":      float(el.get("form") or 0),
+            if el.get("status") in ("u","i","s"):
+                continue
+            team = team_map_b.get(el["team"], {})
+            all_players.append({
+                "id":            el["id"],
+                "name":          el["web_name"],
+                "full_name":     f"{el['first_name']} {el['second_name']}",
+                "pos":           pos_map_b.get(el["element_type"], "MID"),
+                "team":          team.get("short_name", ""),
+                "team_id":       el["team"],
+                "price":         el["now_cost"] / 10,
+                "form":          float(el.get("form") or 0),
+                "xpts":          float(el.get("ep_next") or 0),
+                "momentum":      0,
+                "consistency":   5,
+                "rotation_risk": "unknown",
+                "fdr_avg3":      3,
+                "gw_type":       "normal",
             })
+
+        # all_players already covers the full bootstrap pool for name matching
+        all_names_pool = all_players
 
         def fuzzy_match(p, query):
             """Multi-strategy fuzzy name matching."""
