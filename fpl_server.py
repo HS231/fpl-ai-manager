@@ -142,7 +142,7 @@ def sb_delete(table: str, params: dict) -> bool:
         print(f"[Supabase DELETE error] {table}: {e}")
         return False
 
-def save_squad(gw: int, squad: dict, briefing: str, formation: str, user_id: str = "hartej"):
+def save_squad(gw: int, squad: dict, briefing: str, formation: str, user_id: str = "hartej", squad_type: str = "ai_generated"):
     """Save generated squad to Supabase."""
     xi    = squad.get("xi", [])
     bench = squad.get("bench", [])
@@ -168,6 +168,7 @@ def save_squad(gw: int, squad: dict, briefing: str, formation: str, user_id: str
         "avg_xpts":     avg_xpts,
         "avg_fdr":      avg_fdr,
         "briefing":     briefing,
+        "squad_type":   squad_type,
     })
     print(f"[Supabase] Squad saved for GW{gw}")
 
@@ -198,7 +199,21 @@ def save_briefing(gw: int, content: str, briefing_type: str = "daily", user_id: 
     })
 
 def get_latest_squad(user_id: str = "hartej") -> dict:
-    """Get the most recently saved squad from Supabase."""
+    """
+    Get the most recently saved ACTUAL squad from Supabase.
+    Prefers user_entered or fpl_sync over ai_generated.
+    """
+    # First try user's actual squad (entered or synced from FPL)
+    for squad_type in ["user_entered", "fpl_sync"]:
+        rows = sb_get("squads", {
+            "user_id":    f"eq.{user_id}",
+            "squad_type": f"eq.{squad_type}",
+            "order":      "created_at.desc",
+            "limit":      "1",
+        })
+        if rows:
+            return rows[0]
+    # Fallback to any squad
     rows = sb_get("squads", {
         "user_id": f"eq.{user_id}",
         "order":   "created_at.desc",
@@ -1453,7 +1468,7 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
 
     # Auto-save squad and briefing to Supabase
     try:
-        save_squad(gw_id, squad, briefing, formation)
+        save_squad(gw_id, squad, briefing, formation, squad_type="ai_generated")
         save_briefing(gw_id, briefing, "squad_generation")
     except Exception as e:
         print(f"[Supabase save error] {e}")
@@ -2763,7 +2778,7 @@ def sync_squad_from_fpl(gw: int = None, user_id: str = "hartej") -> dict:
     }
 
     # Save to Supabase
-    save_squad(gw, squad, f"Auto-synced from FPL GW{gw}", "auto", user_id)
+    save_squad(gw, squad, f"Auto-synced from FPL GW{gw}", "auto", user_id, squad_type="fpl_sync")
 
     # Log chip if used
     if active_chip:
@@ -3170,7 +3185,7 @@ def save_squad_manual():
             "formation":    body.get("formation", "auto"),
         }
 
-        save_squad(gw, squad, "Manually entered squad", body.get("formation", "auto"), user_id)
+        save_squad(gw, squad, "Manually entered squad", body.get("formation", "auto"), user_id, squad_type="user_entered")
         return jsonify({"ok": True, "saved": len(xi + bench), "gameweek": gw})
 
     except Exception as e:
