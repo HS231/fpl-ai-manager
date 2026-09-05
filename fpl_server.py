@@ -19,6 +19,207 @@ from flask_cors import CORS
 import requests as req
 import fpl_config as cfg
 
+# ── Email via Resend ─────────────────────────────────────────
+RESEND_API_KEY  = os.environ.get("RESEND_API_KEY", "")
+RESEND_FROM     = os.environ.get("RESEND_FROM", "FPL AI Manager <onboarding@resend.dev>")
+RESEND_TO       = os.environ.get("RESEND_TO", "hartej23196@gmail.com")
+
+def send_email(subject: str, html_body: str, to: str = None) -> bool:
+    """Send email via Resend API."""
+    if not RESEND_API_KEY:
+        print("[Email] No RESEND_API_KEY set — skipping email")
+        return False
+    try:
+        resp = req.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type":  "application/json",
+            },
+            json={
+                "from":    RESEND_FROM,
+                "to":      [to or RESEND_TO],
+                "subject": subject,
+                "html":    html_body,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        print(f"[Email] Sent: {subject}")
+        return True
+    except Exception as e:
+        print(f"[Email] Error: {e}")
+        return False
+
+def format_briefing_email(briefing: str, gw: int, deadline: str, injuries: list) -> str:
+    """Format the daily briefing as a clean HTML email."""
+    injury_html = ""
+    if injuries:
+        injury_html = "<div style='margin:16px 0;padding:14px;background:#fff3f3;border-left:3px solid #ef4444;border-radius:4px'>"
+        injury_html += "<strong style='color:#ef4444'>Injury Alerts</strong><br>"
+        for i in injuries:
+            injury_html += f"<span style='color:#333'>{i['name']} — {i['chance']}% chance · {i.get('news','')}</span><br>"
+        injury_html += "</div>"
+
+    return f"""
+    <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+        <div style="background:linear-gradient(135deg,#7c5cbf,#3b82f6);padding:24px;color:#fff">
+            <div style="font-size:11px;opacity:0.7;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">FPL AI Manager</div>
+            <div style="font-size:22px;font-weight:800;margin-bottom:4px">GW{gw} Daily Briefing</div>
+            <div style="font-size:13px;opacity:0.8">Deadline in {deadline}</div>
+        </div>
+        <div style="padding:24px">
+            {injury_html}
+            <div style="font-size:14px;line-height:1.8;color:#374151">{briefing.replace(chr(10), '<br>')}</div>
+            <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center">
+                <a href="https://web-production-b81c7.up.railway.app" 
+                   style="background:#7c5cbf;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">
+                    Open FPL Manager
+                </a>
+            </div>
+        </div>
+        <div style="padding:14px 24px;background:#f9fafb;text-align:center;font-size:11px;color:#9ca3af">
+            Powered by Claude AI · FPL AI Manager 2026/27
+        </div>
+    </div>"""
+
+# ── Supabase client ──────────────────────────────────────────
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://njofzcegabbxlrjqzzhc.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qb2Z6Y2VnYWJieGxyanF6emhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2MTMzOTEsImV4cCI6MjEwNDE4OTM5MX0.C2sBY11Smr0XId52op4aeD3DOoPpvnVq7wmSC1Etmdo")
+SUPABASE_HEADERS = {
+    "apikey":        SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type":  "application/json",
+    "Prefer":        "return=representation",
+}
+
+def sb_get(table: str, params: dict = None) -> list:
+    """Fetch rows from a Supabase table."""
+    try:
+        url  = f"{SUPABASE_URL}/rest/v1/{table}"
+        resp = req.get(url, headers=SUPABASE_HEADERS, params=params, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        print(f"[Supabase GET error] {table}: {e}")
+        return []
+
+def sb_insert(table: str, data: dict) -> dict:
+    """Insert a row into a Supabase table."""
+    try:
+        url  = f"{SUPABASE_URL}/rest/v1/{table}"
+        resp = req.post(url, headers=SUPABASE_HEADERS, json=data, timeout=10)
+        resp.raise_for_status()
+        result = resp.json()
+        return result[0] if result else {}
+    except Exception as e:
+        print(f"[Supabase INSERT error] {table}: {e}")
+        return {}
+
+def sb_upsert(table: str, data: dict, on_conflict: str = "") -> dict:
+    """Upsert a row into a Supabase table."""
+    try:
+        headers = {**SUPABASE_HEADERS, "Prefer": f"resolution=merge-duplicates,return=representation"}
+        url  = f"{SUPABASE_URL}/rest/v1/{table}"
+        params = {"on_conflict": on_conflict} if on_conflict else {}
+        resp = req.post(url, headers=headers, json=data, params=params, timeout=10)
+        resp.raise_for_status()
+        result = resp.json()
+        return result[0] if result else {}
+    except Exception as e:
+        print(f"[Supabase UPSERT error] {table}: {e}")
+        return {}
+
+def sb_delete(table: str, params: dict) -> bool:
+    """Delete rows from a Supabase table."""
+    try:
+        url  = f"{SUPABASE_URL}/rest/v1/{table}"
+        resp = req.delete(url, headers=SUPABASE_HEADERS, params=params, timeout=10)
+        resp.raise_for_status()
+        return True
+    except Exception as e:
+        print(f"[Supabase DELETE error] {table}: {e}")
+        return False
+
+def save_squad(gw: int, squad: dict, briefing: str, formation: str, user_id: str = "hartej"):
+    """Save generated squad to Supabase."""
+    xi    = squad.get("xi", [])
+    bench = squad.get("bench", [])
+    cap   = squad.get("captain", {})
+    vc    = squad.get("vice_captain", {})
+    avg_xpts = round(sum(p.get("xpts",0) for p in xi) / max(len(xi),1), 2)
+    avg_fdr  = round(sum(p.get("fdr_avg3",3) for p in xi) / max(len(xi),1), 2)
+
+    # Slim down player data for storage
+    def slim(p):
+        return {k: p.get(k) for k in ["id","name","team","pos","price","xpts","form","gw_type","is_doubtful","chance"]}
+
+    sb_insert("squads", {
+        "user_id":      user_id,
+        "gameweek":     gw,
+        "formation":    formation,
+        "captain":      cap.get("name"),
+        "vice_captain": vc.get("name"),
+        "total_value":  squad.get("total_value"),
+        "bank":         squad.get("bank"),
+        "xi":           [slim(p) for p in xi],
+        "bench":        [slim(p) for p in bench],
+        "avg_xpts":     avg_xpts,
+        "avg_fdr":      avg_fdr,
+        "briefing":     briefing,
+    })
+    print(f"[Supabase] Squad saved for GW{gw}")
+
+def save_transfer(gw: int, player_out: str, player_in: str,
+                  out_price: float, in_price: float,
+                  xpts_gain: float, was_hit: bool,
+                  user_id: str = "hartej"):
+    """Save a transfer to Supabase."""
+    sb_insert("transfers", {
+        "user_id":    user_id,
+        "gameweek":   gw,
+        "player_out": player_out,
+        "player_in":  player_in,
+        "out_price":  out_price,
+        "in_price":   in_price,
+        "xpts_gain":  xpts_gain,
+        "was_hit":    was_hit,
+    })
+    print(f"[Supabase] Transfer saved: {player_out} -> {player_in}")
+
+def save_briefing(gw: int, content: str, briefing_type: str = "daily", user_id: str = "hartej"):
+    """Save a briefing to Supabase."""
+    sb_insert("briefings", {
+        "user_id":       user_id,
+        "gameweek":      gw,
+        "briefing_type": briefing_type,
+        "content":       content,
+    })
+
+def get_latest_squad(user_id: str = "hartej") -> dict:
+    """Get the most recently saved squad from Supabase."""
+    rows = sb_get("squads", {
+        "user_id": f"eq.{user_id}",
+        "order":   "created_at.desc",
+        "limit":   "1",
+    })
+    return rows[0] if rows else {}
+
+def get_transfer_history(user_id: str = "hartej", limit: int = 20) -> list:
+    """Get recent transfer history from Supabase."""
+    return sb_get("transfers", {
+        "user_id": f"eq.{user_id}",
+        "order":   "created_at.desc",
+        "limit":   str(limit),
+    })
+
+def get_gw_history(user_id: str = "hartej") -> list:
+    """Get all GW points history from Supabase."""
+    return sb_get("gw_history", {
+        "user_id": f"eq.{user_id}",
+        "order":   "gameweek.asc",
+    })
+
 app = Flask(__name__)
 CORS(app)  # allows the dashboard HTML to talk to this server
 
@@ -1249,6 +1450,13 @@ def build_full_dataset(formation: str = "4-4-2") -> dict:
                 "bgw":  gw_bgw,
             })
 
+    # Auto-save squad and briefing to Supabase
+    try:
+        save_squad(gw_id, squad, briefing, formation)
+        save_briefing(gw_id, briefing, "squad_generation")
+    except Exception as e:
+        print(f"[Supabase save error] {e}")
+
     return {
         "gameweek":       gw_id,
         "deadline":       deadline,
@@ -2463,6 +2671,629 @@ def dashboard():
 # ════════════════════════════════════════════════════════════
 #  START SERVER
 # ════════════════════════════════════════════════════════════
+
+# ════════════════════════════════════════════════════════════
+#  FPL AUTO-SYNC
+#  Pulls your actual squad from FPL public API after each GW
+#  No authentication required — uses public entry endpoint
+# ════════════════════════════════════════════════════════════
+
+FPL_TEAM_ID   = 7757121
+FPL_ENTRY_URL = "https://fantasy.premierleague.com/api/entry/{team_id}/event/{gw}/picks/"
+FPL_TRANSFERS = "https://fantasy.premierleague.com/api/entry/{team_id}/transfers-latest/"
+FPL_HISTORY   = "https://fantasy.premierleague.com/api/entry/{team_id}/history/"
+
+def sync_squad_from_fpl(gw: int = None, user_id: str = "hartej") -> dict:
+    """
+    Pull actual squad from FPL public API for a given GW.
+    Uses entry/{team_id}/event/{gw}/picks/ — no auth needed.
+    Returns the synced squad data.
+    """
+    boot     = cached_get(BOOTSTRAP_URL)
+    team_map = {t["id"]: t["short_name"] for t in boot["teams"]}
+    el_map   = {el["id"]: el for el in boot["elements"]}
+    pos_map  = {1:"GK", 2:"DEF", 3:"MID", 4:"FWD"}
+
+    # Find the latest completed GW if not specified
+    if not gw:
+        completed = [e for e in boot["events"] if e.get("finished")]
+        if not completed:
+            return {"error": "No completed gameweeks yet"}
+        gw = completed[-1]["id"]
+
+    print(f"[FPL Sync] Fetching GW{gw} picks for team {FPL_TEAM_ID}...")
+
+    try:
+        resp = req.get(
+            FPL_ENTRY_URL.format(team_id=FPL_TEAM_ID, gw=gw),
+            headers=HEADERS, timeout=15
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        return {"error": f"FPL API error: {e}"}
+
+    picks    = data.get("picks", [])
+    cap_id   = next((p["element"] for p in picks if p.get("is_captain")), None)
+    vc_id    = next((p["element"] for p in picks if p.get("is_vice_captain")), None)
+    active_chip = data.get("active_chip")
+
+    xi    = []
+    bench = []
+
+    for p in picks:
+        el  = el_map.get(p["element"], {})
+        pos = pos_map.get(el.get("element_type"), "MID")
+        team = team_map.get(el.get("team"), "?")
+        player_data = {
+            "id":    p["element"],
+            "name":  el.get("web_name", "Unknown"),
+            "team":  team,
+            "pos":   pos,
+            "price": el.get("now_cost", 0) / 10,
+            "form":  float(el.get("form") or 0),
+            "xpts":  float(el.get("ep_next") or 0),
+            "gw_type": "normal",
+            "is_doubtful": el.get("status") == "d",
+            "chance": el.get("chance_of_playing_next_round"),
+            "multiplier": p.get("multiplier", 1),
+        }
+        if p.get("position", 15) <= 11:
+            xi.append(player_data)
+        else:
+            bench.append(player_data)
+
+    cap_el = el_map.get(cap_id, {})
+    vc_el  = el_map.get(vc_id, {})
+    cap    = {"id": cap_id, "name": cap_el.get("web_name", "?")}
+    vc     = {"id": vc_id,  "name": vc_el.get("web_name", "?")}
+
+    total_value = sum(p["price"] for p in xi + bench)
+
+    squad = {
+        "xi":           xi,
+        "bench":        bench,
+        "captain":      cap,
+        "vice_captain": vc,
+        "total_value":  round(total_value, 1),
+        "bank":         0,
+        "formation":    "auto",
+        "active_chip":  active_chip,
+    }
+
+    # Save to Supabase
+    save_squad(gw, squad, f"Auto-synced from FPL GW{gw}", "auto", user_id)
+
+    # Log chip if used
+    if active_chip:
+        sb_insert("chips", {
+            "user_id":  user_id,
+            "gameweek": gw,
+            "chip":     active_chip,
+        })
+        print(f"[FPL Sync] Chip used: {active_chip} in GW{gw}")
+
+    print(f"[FPL Sync] Squad synced: {len(xi)} XI + {len(bench)} bench for GW{gw}")
+    return {"ok": True, "gw": gw, "squad": squad, "xi_count": len(xi)}
+
+
+def sync_transfers_from_fpl(user_id: str = "hartej") -> dict:
+    """
+    Pull latest transfers from FPL public API and log to Supabase.
+    Uses entry/{team_id}/transfers-latest/ — no auth needed.
+    """
+    boot   = cached_get(BOOTSTRAP_URL)
+    el_map = {el["id"]: el for el in boot["elements"]}
+
+    try:
+        resp = req.get(
+            FPL_TRANSFERS.format(team_id=FPL_TEAM_ID),
+            headers=HEADERS, timeout=15
+        )
+        resp.raise_for_status()
+        transfers = resp.json()
+    except Exception as e:
+        return {"error": f"FPL transfers API error: {e}"}
+
+    # Get already-logged transfers to avoid duplicates
+    existing = sb_get("transfers", {
+        "user_id": f"eq.{user_id}",
+        "order":   "created_at.desc",
+        "limit":   "10",
+    })
+    existing_keys = {
+        f"{t['gameweek']}_{t['player_out']}_{t['player_in']}"
+        for t in existing
+    }
+
+    new_count = 0
+    for t in transfers:
+        el_out = el_map.get(t.get("element_out"), {})
+        el_in  = el_map.get(t.get("element_in"), {})
+        gw     = t.get("event")
+        out_name = el_out.get("web_name", "?")
+        in_name  = el_in.get("web_name", "?")
+        key = f"{gw}_{out_name}_{in_name}"
+        if key in existing_keys:
+            continue
+        save_transfer(
+            gw         = gw,
+            player_out = out_name,
+            player_in  = in_name,
+            out_price  = t.get("element_out_cost", 0) / 10,
+            in_price   = t.get("element_in_cost", 0) / 10,
+            xpts_gain  = 0,
+            was_hit    = False,
+            user_id    = user_id,
+        )
+        new_count += 1
+
+    print(f"[FPL Sync] {new_count} new transfers logged")
+    return {"ok": True, "new_transfers": new_count}
+
+
+def sync_gw_history(user_id: str = "hartej") -> dict:
+    """
+    Pull full GW points history from FPL public API.
+    Uses entry/{team_id}/history/ — no auth needed.
+    """
+    try:
+        resp = req.get(
+            FPL_HISTORY.format(team_id=FPL_TEAM_ID),
+            headers=HEADERS, timeout=15
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        return {"error": f"FPL history API error: {e}"}
+
+    history = data.get("current", [])
+    for gw_data in history:
+        sb_upsert("gw_history", {
+            "user_id":      user_id,
+            "gameweek":     gw_data.get("event"),
+            "total_points": gw_data.get("total_points"),
+            "gw_points":    gw_data.get("points"),
+            "rank":         gw_data.get("overall_rank"),
+            "hits_taken":   gw_data.get("event_transfers_cost", 0) // 4,
+        }, on_conflict="user_id,gameweek")
+
+    print(f"[FPL Sync] GW history synced: {len(history)} gameweeks")
+    return {"ok": True, "gws_synced": len(history)}
+
+
+def run_full_sync(user_id: str = "hartej") -> dict:
+    """
+    Master sync function — runs all three syncs in order.
+    Called by the scheduler every Tuesday morning.
+    """
+    print(f"[Full Sync] Starting for user {user_id}...")
+    results = {}
+
+    # 1. Sync GW points history
+    results["gw_history"] = sync_gw_history(user_id)
+
+    # 2. Sync latest squad (most recent completed GW)
+    results["squad"] = sync_squad_from_fpl(user_id=user_id)
+
+    # 3. Sync transfers
+    results["transfers"] = sync_transfers_from_fpl(user_id)
+
+    print(f"[Full Sync] Complete: {results}")
+    return results
+
+
+# ════════════════════════════════════════════════════════════
+#  SUPABASE DATA ENDPOINTS
+# ════════════════════════════════════════════════════════════
+
+@app.route("/api/history/squad")
+def get_squad_history():
+    """Get all saved squads for the user."""
+    try:
+        user_id = request.args.get("user_id", "hartej")
+        squads  = sb_get("squads", {
+            "user_id": f"eq.{user_id}",
+            "order":   "gameweek.desc",
+            "limit":   "38",
+        })
+        return jsonify({"ok": True, "squads": squads})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/history/transfers")
+def get_transfer_log():
+    """Get transfer history for the user."""
+    try:
+        user_id   = request.args.get("user_id", "hartej")
+        transfers = get_transfer_history(user_id)
+        return jsonify({"ok": True, "transfers": transfers})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/history/gw")
+def get_gw_points():
+    """Get GW points history for the user."""
+    try:
+        user_id = request.args.get("user_id", "hartej")
+        history = get_gw_history(user_id)
+        return jsonify({"ok": True, "history": history})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/history/latest-squad")
+def get_latest_squad_endpoint():
+    """Get the most recently saved squad."""
+    try:
+        user_id = request.args.get("user_id", "hartej")
+        squad   = get_latest_squad(user_id)
+        return jsonify({"ok": True, "squad": squad})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/log/transfer", methods=["POST"])
+def log_transfer():
+    """Manually log a transfer the user made."""
+    try:
+        body = request.get_json()
+        save_transfer(
+            gw         = body.get("gameweek"),
+            player_out = body.get("player_out"),
+            player_in  = body.get("player_in"),
+            out_price  = body.get("out_price", 0),
+            in_price   = body.get("in_price", 0),
+            xpts_gain  = body.get("xpts_gain", 0),
+            was_hit    = body.get("was_hit", False),
+        )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/log/gw-result", methods=["POST"])
+def log_gw_result():
+    """Log GW points result."""
+    try:
+        body = request.get_json()
+        sb_upsert("gw_history", {
+            "user_id":      body.get("user_id", "hartej"),
+            "gameweek":     body.get("gameweek"),
+            "total_points": body.get("total_points"),
+            "gw_points":    body.get("gw_points"),
+            "rank":         body.get("rank"),
+            "captain":      body.get("captain"),
+            "captain_pts":  body.get("captain_pts"),
+            "hits_taken":   body.get("hits_taken", 0),
+        }, on_conflict="user_id,gameweek")
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/daily-briefing")
+def get_daily_briefing():
+    """
+    Generate a personalised daily briefing using stored squad data.
+    Reads your saved squad from Supabase, pulls fresh FPL data,
+    and asks Claude to write a proactive manager update.
+    """
+    try:
+        user_id     = request.args.get("user_id", "hartej")
+        saved_squad = get_latest_squad(user_id)
+        boot        = cached_get(BOOTSTRAP_URL)
+        fixtures    = cached_get(FIXTURES_URL)
+
+        # Current GW
+        from datetime import timezone
+        now        = datetime.now(timezone.utc)
+        future_gws = [e for e in boot["events"]
+                      if e.get("deadline_time") and
+                      datetime.fromisoformat(e["deadline_time"].replace("Z","+00:00")) > now]
+        active_gw  = future_gws[0] if future_gws else None
+        gw_id      = active_gw["id"] if active_gw else 1
+        deadline   = active_gw["deadline_time"] if active_gw else None
+
+        # Hours until deadline
+        hours_left = ""
+        if deadline:
+            dl_dt      = datetime.fromisoformat(deadline.replace("Z","+00:00"))
+            hours_left = round((dl_dt - now).total_seconds() / 3600, 1)
+
+        # Get injury news for saved squad players
+        squad_names = []
+        injury_flags = []
+        if saved_squad and saved_squad.get("xi"):
+            xi = saved_squad["xi"]
+            squad_names = [p.get("name","") for p in xi]
+            for el in boot["elements"]:
+                if el["web_name"] in squad_names:
+                    if el.get("status") == "d" or (el.get("chance_of_playing_next_round") or 100) < 100:
+                        injury_flags.append({
+                            "name":   el["web_name"],
+                            "chance": el.get("chance_of_playing_next_round"),
+                            "news":   el.get("news",""),
+                        })
+
+        # Transfer history context
+        recent_transfers = get_transfer_history(user_id, limit=5)
+        transfer_str = ", ".join([f"{t['player_out']} → {t['player_in']}" for t in recent_transfers]) or "None recorded"
+
+        # GW history context
+        gw_hist  = get_gw_history(user_id)
+        pts_str  = ", ".join([f"GW{h['gameweek']}: {h['gw_points']}pts" for h in gw_hist[-3:]]) or "No history yet"
+
+        # Build prompt
+        squad_str = ""
+        if saved_squad and saved_squad.get("xi"):
+            squad_str = ", ".join([f"{p['name']} ({p['team']}, {p['pos']}, £{p['price']}m)" for p in saved_squad["xi"]])
+        else:
+            squad_str = "No squad saved yet — user needs to generate their squad first."
+
+        deadline_str = f"{hours_left} hours" if hours_left else "Unknown"
+        injury_str   = ", ".join([f"{i['name']} ({i['chance']}% chance — {i['news']})" for i in injury_flags]) or "No injury concerns"
+
+        prompt = f"""You are Hartej's personal FPL AI Manager. You know his squad, his history, and you're talking to him directly every day.
+
+TODAY'S CONTEXT:
+- Date: {datetime.now().strftime('%A %d %B %Y')}
+- Current gameweek: GW{gw_id}
+- Deadline: {deadline_str} away
+- Hartej's squad: {squad_str}
+- Injury concerns in his squad: {injury_str}
+- Recent transfers: {transfer_str}
+- Recent GW points: {pts_str}
+
+Write Hartej a personalised daily FPL briefing of 200 words. Talk directly to him — "your squad", "you should", "I'd recommend".
+
+Cover:
+1. One sharp opening line about where things stand this GW
+2. Any injury concerns in HIS squad specifically — what should he do about them
+3. One clear transfer recommendation if warranted, with reasoning
+4. A captain reminder or change if the situation has shifted
+5. One thing to watch today (news, price changes, deadline approaching)
+
+Be direct, opinionated and specific. Sound like a knowledgeable friend who follows FPL obsessively.
+No markdown, no bullet points, plain prose only."""
+
+        resp = req.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={{"Content-Type":"application/json",
+                     "x-api-key": cfg.ANTHROPIC_API_KEY,
+                     "anthropic-version":"2023-06-01"}},
+            json={{"model":"claude-sonnet-4-6","max_tokens":600,
+                  "messages":[{{"role":"user","content":prompt}}]}},
+            timeout=30,
+        )
+        briefing = resp.json()["content"][0]["text"]
+
+        # Save briefing
+        save_briefing(gw_id, briefing, "daily", user_id)
+
+        # Send email if requested
+        send_mail = request.args.get("email", "false").lower() == "true"
+        email_sent = False
+        if send_mail:
+            html  = format_briefing_email(briefing, gw_id, deadline_str, injury_flags)
+            email_sent = send_email(f"GW{gw_id} FPL Briefing — {datetime.now().strftime('%a %d %b')}", html)
+
+        return jsonify({{
+            "ok":        True,
+            "briefing":  briefing,
+            "gameweek":  gw_id,
+            "deadline":  deadline_str,
+            "injuries":  injury_flags,
+            "email_sent": email_sent,
+            "generated": datetime.now().isoformat(),
+        }})
+
+    except Exception as e:
+        return jsonify({{"ok": False, "error": str(e)}}), 500
+
+
+# ════════════════════════════════════════════════════════════
+#  SYNC & SCHEDULER ENDPOINTS
+# ════════════════════════════════════════════════════════════
+
+@app.route("/api/sync/squad")
+def sync_squad_endpoint():
+    """Manually trigger squad sync from FPL API."""
+    try:
+        gw      = request.args.get("gw", type=int)
+        user_id = request.args.get("user_id", "hartej")
+        result  = sync_squad_from_fpl(gw, user_id)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/sync/all")
+def sync_all_endpoint():
+    """Run full sync — squad, transfers, GW history."""
+    try:
+        user_id = request.args.get("user_id", "hartej")
+        result  = run_full_sync(user_id)
+        return jsonify({"ok": True, **result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/save-squad", methods=["POST"])
+def save_squad_manual():
+    """
+    Save manually entered squad to Supabase.
+    Called when user enters their squad in the app.
+    """
+    try:
+        body    = request.get_json()
+        players = body.get("players", [])
+        user_id = body.get("user_id", "hartej")
+        gw      = body.get("gameweek", 1)
+
+        boot     = cached_get(BOOTSTRAP_URL)
+        el_map   = {el["web_name"].lower(): el for el in boot["elements"]}
+        team_map = {t["id"]: t["short_name"] for t in boot["teams"]}
+        pos_map  = {1:"GK", 2:"DEF", 3:"MID", 4:"FWD"}
+
+        xi    = []
+        bench = []
+        for i, p in enumerate(players):
+            name_lower = p.get("name", "").lower()
+            el = el_map.get(name_lower)
+            if not el:
+                # Try partial match
+                el = next((v for k, v in el_map.items() if name_lower in k or k in name_lower), None)
+            if el:
+                player = {
+                    "id":    el["id"],
+                    "name":  el["web_name"],
+                    "team":  team_map.get(el["team"], "?"),
+                    "pos":   pos_map.get(el["element_type"], "MID"),
+                    "price": el["now_cost"] / 10,
+                    "form":  float(el.get("form") or 0),
+                    "xpts":  float(el.get("ep_next") or 0),
+                    "gw_type": "normal",
+                    "is_doubtful": el.get("status") == "d",
+                    "chance": el.get("chance_of_playing_next_round"),
+                }
+                if i < 11:
+                    xi.append(player)
+                else:
+                    bench.append(player)
+
+        captain = body.get("captain", xi[0]["name"] if xi else "")
+        vc      = body.get("vice_captain", xi[1]["name"] if len(xi) > 1 else "")
+
+        squad = {
+            "xi":           xi,
+            "bench":        bench,
+            "captain":      {"name": captain},
+            "vice_captain": {"name": vc},
+            "total_value":  round(sum(p["price"] for p in xi + bench), 1),
+            "bank":         body.get("bank", 0),
+            "formation":    body.get("formation", "auto"),
+        }
+
+        save_squad(gw, squad, "Manually entered squad", body.get("formation", "auto"), user_id)
+        return jsonify({"ok": True, "saved": len(xi + bench), "gameweek": gw})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/scheduler/run")
+def scheduler_run():
+    """
+    Called by Railway cron job.
+    Runs full sync + generates daily briefing.
+    Protected by a simple token.
+    """
+    token = request.args.get("token", "")
+    if token != os.environ.get("SCHEDULER_TOKEN", "fpl-daily-sync"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    try:
+        user_id = request.args.get("user_id", "hartej")
+
+        # Run full sync
+        sync_result = run_full_sync(user_id)
+
+        # Generate and send daily briefing
+        from flask import current_app
+        with current_app.test_request_context():
+            briefing_result = get_daily_briefing_data(user_id)
+
+        briefing_text = briefing_result.get("briefing", "")
+        gw_id         = briefing_result.get("gameweek", 1)
+        deadline_str  = briefing_result.get("deadline", "")
+        injuries      = briefing_result.get("injuries", [])
+        html          = format_briefing_email(briefing_text, gw_id, deadline_str, injuries)
+        send_email(f"GW{gw_id} FPL Daily Briefing — {datetime.now().strftime('%a %d %b')}", html)
+
+        return jsonify({
+            "ok":      True,
+            "sync":    sync_result,
+            "briefing": briefing_text[:100] + "...",
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+def get_daily_briefing_data(user_id: str = "hartej") -> dict:
+    """Core briefing logic — separated so scheduler can call it."""
+    saved_squad = get_latest_squad(user_id)
+    boot        = cached_get(BOOTSTRAP_URL)
+
+    from datetime import timezone
+    now        = datetime.now(timezone.utc)
+    future_gws = [e for e in boot["events"]
+                  if e.get("deadline_time") and
+                  datetime.fromisoformat(e["deadline_time"].replace("Z","+00:00")) > now]
+    active_gw  = future_gws[0] if future_gws else None
+    gw_id      = active_gw["id"] if active_gw else 1
+    deadline   = active_gw["deadline_time"] if active_gw else None
+
+    hours_left = ""
+    if deadline:
+        dl_dt      = datetime.fromisoformat(deadline.replace("Z","+00:00"))
+        hours_left = round((dl_dt - now).total_seconds() / 3600, 1)
+
+    # Get injury news for saved squad players
+    squad_names  = []
+    injury_flags = []
+    if saved_squad and saved_squad.get("xi"):
+        xi          = saved_squad["xi"]
+        squad_names = [p.get("name","") for p in xi]
+        for el in boot["elements"]:
+            if el["web_name"] in squad_names:
+                if el.get("status") == "d" or (el.get("chance_of_playing_next_round") or 100) < 100:
+                    injury_flags.append({
+                        "name":   el["web_name"],
+                        "chance": el.get("chance_of_playing_next_round"),
+                        "news":   el.get("news",""),
+                    })
+
+    recent_transfers = get_transfer_history(user_id, limit=5)
+    transfer_str     = ", ".join([f"{t['player_out']} → {t['player_in']}" for t in recent_transfers]) or "None recorded"
+    gw_hist          = get_gw_history(user_id)
+    pts_str          = ", ".join([f"GW{h['gameweek']}: {h['gw_points']}pts" for h in gw_hist[-3:]]) or "No history yet"
+
+    squad_str = ""
+    if saved_squad and saved_squad.get("xi"):
+        squad_str = ", ".join([f"{p['name']} ({p.get('team','?')}, {p.get('pos','?')}, £{p.get('price','?')}m)" for p in saved_squad["xi"]])
+    else:
+        squad_str = "No squad saved yet"
+
+    deadline_str = f"{hours_left} hours" if hours_left else "Unknown"
+    injury_str   = ", ".join([f"{i['name']} ({i['chance']}% — {i['news']})" for i in injury_flags]) or "No injury concerns"
+
+    prompt = f"""You are Hartej's personal FPL AI Manager. You know his squad, his history, and you talk to him directly every day.
+
+TODAY: {datetime.now().strftime('%A %d %B %Y')}
+GW{gw_id} deadline: {deadline_str} away
+His squad: {squad_str}
+Injury concerns: {injury_str}
+Recent transfers: {transfer_str}
+Recent points: {pts_str}
+
+Write Hartej a personalised daily FPL briefing — 200 words max. Talk directly to him.
+Cover: squad status, any injury action needed, one transfer recommendation if warranted, captain reminder, one thing to watch today.
+Be direct, opinionated, specific. Plain prose only, no bullet points."""
+
+    resp = req.post(
+        "https://api.anthropic.com/v1/messages",
+        headers={{"Content-Type":"application/json",
+                 "x-api-key": cfg.ANTHROPIC_API_KEY,
+                 "anthropic-version":"2023-06-01"}},
+        json={{"model":"claude-sonnet-4-6","max_tokens":600,
+              "messages":[{{"role":"user","content":prompt}}]}},
+        timeout=30,
+    )
+    briefing = resp.json()["content"][0]["text"]
+    save_briefing(gw_id, briefing, "daily", user_id)
+
+    return {{
+        "ok":       True,
+        "briefing": briefing,
+        "gameweek": gw_id,
+        "deadline": deadline_str,
+        "injuries": injury_flags,
+    }}
+
 
 if __name__ == "__main__":
     print("=" * 55)

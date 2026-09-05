@@ -704,7 +704,7 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
           <div class="ai-role">Powered by Claude</div>
         </div>
       </div>
-      <button class="ai-ask-btn" onclick="showTab('squad',document.querySelector('.nav-item'))">View Briefing</button>
+      <button class="ai-ask-btn" onclick="loadDailyBriefing()" id="daily-brief-btn">Get Daily Briefing</button>
     </div>
   </aside>
 
@@ -775,6 +775,7 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
         <div style="font-size:15px;font-weight:600;color:var(--text)">Ready to build your squad</div>
         <div style="font-size:12px;text-align:center;max-width:280px;line-height:1.6">Click "Generate Squad" to get your AI-optimised 15-man squad for this gameweek</div>
         <button class="btn-primary" onclick="run()" style="margin-top:8px">Generate Squad</button>
+        <button class="btn-secondary" onclick="loadSavedSquad()" style="margin-top:8px">Load Last Saved Squad</button>
       </div>
 
     </div>
@@ -820,6 +821,12 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
               </div>
               <button class="tp-run-btn" id="tp-run-btn" onclick="runTransfers()">
                 <span id="tp-btn-txt">Find best transfers</span>
+              </button>
+              <button class="tp-run-btn" onclick="saveMySquad()" style="margin-top:8px;background:var(--bg3);border:1px solid var(--border2);color:var(--purple-l)">
+                <span>💾 Save as my squad</span>
+              </button>
+              <button class="tp-run-btn" onclick="syncFromFPL()" style="margin-top:6px;background:var(--bg3);border:1px solid var(--border2);color:var(--green);font-size:11px">
+                <span id="sync-btn-txt">↻ Auto-sync from FPL (post-GW)</span>
               </button>
             </div>
           </div>
@@ -1017,6 +1024,32 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
 
   </aside>
 
+</div>
+
+<!-- DAILY BRIEFING MODAL -->
+<div id="briefing-modal" onclick="if(event.target.id==='briefing-modal')this.style.display='none'"
+  style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.75);padding:20px;backdrop-filter:blur(4px);overflow-y:auto">
+  <div style="max-width:600px;margin:40px auto;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#fff">Daily Briefing</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px" id="brief-meta">Your personalised AI manager update</div>
+      </div>
+      <button onclick="document.getElementById('briefing-modal').style.display='none'"
+        style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer">✕</button>
+    </div>
+    <div id="brief-loading" style="padding:40px;text-align:center;color:var(--muted)">
+      <div class="spin" style="width:22px;height:22px;margin:0 auto 12px;border-top-color:var(--purple-l)"></div>
+      Generating your daily briefing...
+    </div>
+    <div id="brief-content" style="display:none;padding:22px">
+      <div id="brief-injuries" style="margin-bottom:14px"></div>
+      <div id="brief-text" style="font-size:13px;line-height:1.8;color:rgba(255,255,255,0.7)"></div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <div class="claude-badge">🤖 Claude AI · Powered by your saved squad</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- PLAYER MODAL -->
@@ -1745,10 +1778,152 @@ document.addEventListener('click',e=>{
     document.getElementById('search-results').style.display='none';
 });
 
+// ── SAVE MY SQUAD ──
+async function saveMySquad(){
+  if(pickedPlayers.length < 11){
+    alert('Add at least 11 players first');
+    return;
+  }
+  try{
+    const boot = await fetch(`${API}/api/players`).then(r=>r.json());
+    const gw   = parseInt(document.getElementById('nav-gw').textContent.replace('GW','').trim()) || 1;
+    const res  = await fetch(`${API}/api/save-squad`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        players:   pickedPlayers.map((p,i)=>({name:p.name, position: i<11?'xi':'bench'})),
+        gameweek:  gw,
+        formation: '4-3-3',
+        bank:      parseFloat(document.getElementById('bank-input').value)||0,
+      })
+    });
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error);
+    alert(`✓ Squad saved! ${json.saved} players stored for GW${json.gameweek}`);
+  } catch(e){
+    alert('Error saving squad: '+e.message);
+  }
+}
+
+// ── SYNC FROM FPL ──
+async function syncFromFPL(){
+  const btn = document.getElementById('sync-btn-txt');
+  btn.textContent='Syncing from FPL...';
+  try{
+    const res  = await fetch(`${API}/api/sync/all`);
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error);
+    btn.textContent='✓ Synced! Reload to see updated squad';
+    setTimeout(()=>btn.textContent='↻ Auto-sync from FPL (post-GW)',3000);
+  } catch(e){
+    btn.textContent='Sync failed: '+e.message;
+    setTimeout(()=>btn.textContent='↻ Auto-sync from FPL (post-GW)',3000);
+  }
+}
+
 // ── ESCAPE TO CLOSE MODAL ──
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape') document.getElementById('player-modal').style.display='none';
+  if(e.key==='Escape'){
+    document.getElementById('player-modal').style.display='none';
+    document.getElementById('briefing-modal').style.display='none';
+  }
 });
+
+// ── DAILY BRIEFING ──
+async function loadDailyBriefing(){
+  const modal = document.getElementById('briefing-modal');
+  modal.style.display='block';
+  document.getElementById('brief-loading').style.display='block';
+  document.getElementById('brief-content').style.display='none';
+  document.getElementById('daily-brief-btn').textContent='Loading...';
+
+  try{
+    const res  = await fetch(`${API}/api/daily-briefing`);
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error);
+
+    document.getElementById('brief-meta').textContent =
+      `GW${json.gameweek} · Deadline in ${json.deadline} · ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}`;
+
+    // Injury alerts
+    const injuries = json.injuries||[];
+    document.getElementById('brief-injuries').innerHTML = injuries.map(i=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18);border-radius:8px;font-size:11px;margin-bottom:6px">
+        <div style="width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0"></div>
+        <span><strong style="color:#fca5a5">${i.name} ${i.chance!=null?i.chance+'%':''}</strong>${i.news?' — '+i.news:''}</span>
+      </div>`).join('');
+
+    document.getElementById('brief-text').textContent = json.briefing;
+    document.getElementById('brief-loading').style.display='none';
+    document.getElementById('brief-content').style.display='block';
+  } catch(e){
+    document.getElementById('brief-loading').textContent='Error: '+e.message;
+  }
+  document.getElementById('daily-brief-btn').textContent='Get Daily Briefing';
+}
+
+// ── LOAD SAVED SQUAD ──
+async function loadSavedSquad(){
+  try{
+    const res  = await fetch(`${API}/api/history/latest-squad`);
+    const json = await res.json();
+    if(!json.ok||!json.squad||!json.squad.xi) throw new Error('No saved squad found');
+
+    const saved = json.squad;
+    // Reconstruct squad display from saved data
+    document.getElementById('squad-empty').style.display='none';
+    document.getElementById('squad-stats').style.display='grid';
+    document.getElementById('s-val').textContent   = '£'+(saved.total_value||'?')+'m';
+    document.getElementById('s-bank').textContent  = '£'+(saved.bank||'?')+'m in bank';
+    document.getElementById('s-cap').textContent   = saved.captain||'?';
+    document.getElementById('s-xpts').textContent  = saved.avg_xpts||'?';
+    document.getElementById('s-fdr').textContent   = saved.avg_fdr||'?';
+
+    // Show briefing
+    if(saved.briefing){
+      document.getElementById('briefing-content').innerHTML =
+        `<div class="briefing-text">${saved.briefing}</div>`;
+    }
+
+    // Restore pitch from saved XI
+    if(saved.xi && saved.xi.length){
+      const parts = (saved.formation||'4-3-3').split('-');
+      const n_def=parseInt(parts[0]),n_mid=parseInt(parts[1]),n_fwd=parseInt(parts[2]);
+      const gk  = saved.xi.filter(p=>p.pos==='GK');
+      const def = saved.xi.filter(p=>p.pos==='DEF');
+      const mid = saved.xi.filter(p=>p.pos==='MID');
+      const fwd = saved.xi.filter(p=>p.pos==='FWD');
+
+      function savedChip(p){
+        const isCap = p.name===saved.captain;
+        const isVC  = p.name===saved.vice_captain;
+        return `<div class="pchip" onclick="openPlayer(${p.id||0},'${p.name}')">
+          <div class="pshirt" style="${getShirtStyle(p.team,p.pos)};width:44px;height:44px;font-size:11px;border-radius:10px;position:relative">
+            ${p.gw_type==='DGW'?'<span class="dgw-tag">2x</span>':''}
+            ${isCap?'<span class="cap-badge">C</span>':''}
+            ${isVC&&!isCap?'<span class="vc-badge">V</span>':''}
+            ${getInitials(p.name)}
+          </div>
+          <div class="pname">${p.name}</div>
+          <div class="pprice">£${p.price}m</div>
+        </div>`;
+      }
+
+      const row = ps=>`<div class="p-row">${ps.map(savedChip).join('')}</div>`;
+      document.getElementById('pitch-surface').innerHTML = row(gk)+row(def)+row(mid)+row(fwd);
+      document.getElementById('bench-row').innerHTML = (saved.bench||[]).map(p=>{
+        return `<div class="pchip"><div class="pshirt" style="${getShirtStyle(p.team,p.pos)};width:36px;height:36px;font-size:9px;border-radius:8px">${getInitials(p.name)}</div><div class="pname">${p.name}</div></div>`;
+      }).join('');
+      document.getElementById('pitch-formation').textContent = (saved.formation||'4-3-3')+' · Saved Squad';
+      document.getElementById('pitch-section').style.display='block';
+      document.getElementById('squad-stats-panel').style.display='block';
+    }
+
+    alert('✓ Loaded your saved GW'+saved.gameweek+' squad');
+  } catch(e){
+    alert('No saved squad found. Generate a squad first.');
+  }
+}
 </script>
 </body>
 </html>
