@@ -6,339 +6,233 @@
 <title>FPL AI Manager</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* ── RESET & BASE ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:        #0d0d14;
-  --bg2:       #13131e;
-  --bg3:       #1a1a28;
-  --bg4:       #22223a;
-  --border:    rgba(255,255,255,0.06);
-  --border2:   rgba(255,255,255,0.12);
-  --text:      #f0f0f5;
-  --muted:     rgba(255,255,255,0.38);
-  --purple:    #7c5cbf;
-  --purple-l:  #9b7de0;
-  --blue:      #3b82f6;
-  --green:     #22c55e;
-  --orange:    #f97316;
-  --red:       #ef4444;
-  --amber:     #f59e0b;
-  --display:   'Space Grotesk',sans-serif;
-  --body:      'Inter',sans-serif;
-  --mono:      'Space Grotesk',monospace;
-  --radius:    10px;
-  --sidebar-w: 220px;
-  --right-w:   300px;
+  --bg:#0d0d14;--bg2:#13131e;--bg3:#1a1a28;--bg4:#22223a;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
+  --text:#f0f0f5;--muted:rgba(255,255,255,0.38);
+  --purple:#7c5cbf;--purple-l:#9b7de0;
+  --blue:#3b82f6;--green:#22c55e;--orange:#f97316;--red:#ef4444;--amber:#f59e0b;
+  --display:'Space Grotesk',sans-serif;--body:'Inter',sans-serif;
+  --radius:10px;--sidebar-w:220px;--right-w:290px;
 }
 html,body{height:100%;overflow:hidden}
-body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;display:flex;flex-direction:column}
-
-/* ── SCROLLBAR ── */
+body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14px;display:flex;flex-direction:column}
 ::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
 
-/* ── TOP NAV ── */
-.topnav{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:0 20px;height:54px;
-  background:var(--bg2);
-  border-bottom:1px solid var(--border);
-  flex-shrink:0;z-index:100;
-  position:relative;
-}
+/* ── TOPNAV ── */
+.topnav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:54px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:100}
 .nav-logo{display:flex;align-items:center;gap:10px}
-.logo-mark{
-  width:34px;height:34px;border-radius:9px;
-  background:linear-gradient(135deg,var(--purple),var(--blue));
-  display:flex;align-items:center;justify-content:center;
-  font-family:var(--display);font-weight:700;font-size:13px;color:#fff;
-  letter-spacing:-0.5px;flex-shrink:0;
-}
-.nav-brand-text{display:flex;flex-direction:column;gap:1px}
-.nav-title{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-0.3px;color:#fff}
-.nav-sub{font-size:10px;color:var(--muted);letter-spacing:0.5px}
+.logo-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:13px;color:#fff}
+.nav-title{font-family:var(--display);font-size:15px;font-weight:700;color:#fff}
+.nav-sub{font-size:10px;color:var(--muted)}
 .nav-center{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px}
-.nav-gw-badge{
-  background:var(--purple);color:#fff;
-  font-family:var(--display);font-size:11px;font-weight:700;
-  padding:4px 12px;border-radius:20px;letter-spacing:0.5px;
-}
+.nav-gw{background:var(--purple);color:#fff;font-family:var(--display);font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px}
 .nav-deadline{font-size:11px;color:var(--muted);padding:4px 12px;border:1px solid var(--border);border-radius:20px}
 .nav-right{display:flex;align-items:center;gap:8px}
 .nav-live{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--green);font-weight:600}
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-.btn-refresh{
-  background:var(--bg3);border:1px solid var(--border2);color:var(--text);
-  padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600;
-  cursor:pointer;font-family:var(--body);transition:background 0.15s;
-  display:flex;align-items:center;gap:6px;
-}
-.btn-refresh:hover{background:var(--bg4)}
-.btn-refresh.loading{opacity:0.6;pointer-events:none}
+.btn-gen{background:var(--purple);color:#fff;border:none;padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:var(--body)}
+.btn-gen:hover{background:var(--purple-l)}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;animation:spin 0.8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-/* ── APP SHELL ── */
-.app-shell{display:flex;flex:1;overflow:hidden}
+/* ── SHELL ── */
+.app{display:flex;flex:1;overflow:hidden}
 
 /* ── SIDEBAR ── */
-.sidebar{
-  width:var(--sidebar-w);flex-shrink:0;
-  background:var(--bg2);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;overflow-y:auto;padding:12px 0;
-}
-.sidebar-greeting{padding:14px 16px 10px;border-bottom:1px solid var(--border);margin-bottom:8px}
-.greeting-text{font-size:12px;font-weight:600;color:var(--text);line-height:1.4}
-.greeting-sub{font-size:10px;color:var(--muted);margin-top:2px}
-.nav-section{padding:6px 16px 4px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
-.nav-item{
-  display:flex;align-items:center;gap:10px;
-  padding:9px 12px;margin:1px 8px;border-radius:8px;
-  cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);
-  transition:all 0.12s;position:relative;
-}
-.nav-item:hover{background:var(--bg3);color:var(--text)}
-.nav-item.active{background:rgba(124,92,191,0.15);color:var(--purple-l)}
-.nav-item.active::before{content:'';position:absolute;left:-8px;top:50%;transform:translateY(-50%);width:3px;height:18px;background:var(--purple-l);border-radius:0 2px 2px 0}
-.nav-icon{width:26px;height:26px;border-radius:6px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
-.nav-item.active .nav-icon{background:rgba(124,92,191,0.2)}
-.nav-label{flex:1}
-.nav-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(124,92,191,0.2);color:var(--purple-l)}
-.nav-badge.warn{background:rgba(249,115,22,0.15);color:var(--orange)}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:12px 0}
+.sb-greeting{padding:14px 16px 12px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.sb-greeting-text{font-size:13px;font-weight:600;color:#fff;line-height:1.4}
+.sb-greeting-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.sb-section{padding:6px 16px 4px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:1px 8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);transition:all 0.12s;position:relative}
+.sb-item:hover{background:var(--bg3);color:var(--text)}
+.sb-item.active{background:rgba(124,92,191,0.15);color:var(--purple-l)}
+.sb-item.active::before{content:'';position:absolute;left:-8px;top:50%;transform:translateY(-50%);width:3px;height:18px;background:var(--purple-l);border-radius:0 2px 2px 0}
+.sb-icon{width:26px;height:26px;border-radius:6px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.sb-badge{margin-left:auto;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(124,92,191,0.2);color:var(--purple-l)}
+.sb-badge.warn{background:rgba(249,115,22,0.15);color:var(--orange)}
+.sb-badge.alert{background:rgba(34,197,94,0.15);color:var(--green)}
 
-/* Sidebar AI card */
-.ai-card{
-  margin:12px 10px 0;padding:12px;
-  background:linear-gradient(135deg,rgba(124,92,191,0.15),rgba(59,130,246,0.1));
-  border:1px solid rgba(124,92,191,0.2);border-radius:10px;
-}
-.ai-card-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.ai-avatar{
-  width:28px;height:28px;border-radius:50%;
-  background:linear-gradient(135deg,var(--purple),var(--blue));
-  display:flex;align-items:center;justify-content:center;
-  font-size:12px;flex-shrink:0;
-}
+/* Chip alert in sidebar */
+.chip-alert-card{margin:10px;padding:12px;background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(59,130,246,0.08));border:1px solid rgba(34,197,94,0.2);border-radius:10px;display:none}
+.chip-alert-title{font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.chip-alert-text{font-size:11px;color:rgba(255,255,255,0.6);line-height:1.5;margin-bottom:8px}
+.chip-alert-btn{width:100%;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:var(--green);padding:7px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--body)}
+
+.ai-card{margin:10px 10px 0;padding:12px;background:linear-gradient(135deg,rgba(124,92,191,0.15),rgba(59,130,246,0.1));border:1px solid rgba(124,92,191,0.2);border-radius:10px;margin-top:auto}
+.ai-card-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ai-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
 .ai-name{font-size:11px;font-weight:700;color:#fff}
 .ai-role{font-size:9px;color:var(--muted)}
-.ai-ask-btn{
-  width:100%;background:rgba(124,92,191,0.2);border:1px solid rgba(124,92,191,0.3);
-  color:var(--purple-l);padding:7px 12px;border-radius:7px;
-  font-size:11px;font-weight:600;cursor:pointer;text-align:center;
-  font-family:var(--body);transition:background 0.15s;
-}
-.ai-ask-btn:hover{background:rgba(124,92,191,0.3)}
+.ai-btn{width:100%;background:rgba(124,92,191,0.2);border:1px solid rgba(124,92,191,0.3);color:var(--purple-l);padding:7px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--body);margin-top:6px}
 
 /* ── CENTER ── */
 .center{flex:1;overflow-y:auto;display:flex;flex-direction:column}
-
-/* Tab content */
-.tab-content{display:none;flex:1}
-.tab-content.active{display:flex;flex-direction:column}
-
-/* Page header */
-.page-header{padding:20px 20px 12px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-shrink:0}
+.tab-content{display:none;flex:1;flex-direction:column}
+.tab-content.active{display:flex}
+.page-hdr{padding:18px 20px 12px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0}
 .page-title{font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:-0.5px;color:#fff}
 .page-title span{color:var(--purple-l)}
 .page-sub{font-size:11px;color:var(--muted);margin-top:3px}
-.page-actions{display:flex;gap:8px;flex-shrink:0;margin-top:2px}
-.btn-primary{
-  background:var(--purple);color:#fff;border:none;
-  padding:8px 18px;border-radius:8px;font-size:12px;font-weight:700;
-  cursor:pointer;font-family:var(--body);display:flex;align-items:center;gap:6px;
-  transition:background 0.15s;
-}
+.page-actions{display:flex;gap:8px;margin-top:4px}
+.btn-primary{background:var(--purple);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--body);display:flex;align-items:center;gap:6px}
 .btn-primary:hover{background:var(--purple-l)}
-.btn-secondary{
-  background:var(--bg3);color:var(--text);border:1px solid var(--border2);
-  padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;
-  cursor:pointer;font-family:var(--body);transition:background 0.15s;
-}
-.btn-secondary:hover{background:var(--bg4)}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border2);padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--body)}
 
-/* Formation selector */
-.formation-row{display:flex;gap:6px;padding:0 20px 14px;flex-shrink:0}
-.f-btn{
-  background:var(--bg3);border:1px solid var(--border);color:var(--muted);
-  padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;
-  cursor:pointer;font-family:var(--body);transition:all 0.12s;
-}
-.f-btn.active{background:rgba(124,92,191,0.15);border-color:rgba(124,92,191,0.4);color:var(--purple-l)}
-
-/* Stats strip */
-.stats-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 20px 16px;flex-shrink:0}
+/* ── STATS STRIP ── */
+.stats-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 20px 14px;flex-shrink:0}
 .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
-.stat-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px}
+.stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px}
 .stat-val{font-size:22px;font-weight:800;letter-spacing:-1px;font-family:var(--display);color:#fff}
 .stat-val.purple{color:var(--purple-l)}
 .stat-val.blue{color:var(--blue)}
-.stat-val.green{color:var(--green)}
 .stat-val.orange{color:var(--orange)}
-.stat-val.amber{color:var(--amber)}
 .stat-sub{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* ── CHIP ALERT BANNER ── */
+.chip-banner{display:none;margin:0 20px 12px;padding:12px 16px;background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(59,130,246,0.06));border:1px solid rgba(34,197,94,0.25);border-radius:10px;flex-shrink:0}
+.chip-banner-inner{display:flex;align-items:center;gap:12px}
+.chip-banner-icon{font-size:22px;flex-shrink:0}
+.chip-banner-text{flex:1}
+.chip-banner-title{font-size:12px;font-weight:700;color:var(--green);margin-bottom:3px}
+.chip-banner-desc{font-size:11px;color:rgba(255,255,255,0.55);line-height:1.5}
+.chip-banner-score{font-family:var(--display);font-size:24px;font-weight:800;color:var(--green);flex-shrink:0}
+
+/* ── INJURY ALERTS ── */
+.injury-alerts{display:flex;flex-direction:column;gap:5px;padding:0 20px 10px;flex-shrink:0}
+.injury-alert{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18);border-radius:8px;font-size:11px}
+.i-dot{width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0}
+.i-dot.amber{background:var(--amber)}
 
 /* ── PITCH ── */
 .pitch-section{margin:0 20px 16px;border-radius:14px;overflow:hidden;border:1px solid var(--border);flex-shrink:0}
-.pitch-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border)}
-.pitch-header-left{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
-.pitch-surface{
-  background:linear-gradient(180deg,#143d1e 0%,#195228 30%,#1d5c2d 50%,#195228 70%,#143d1e 100%);
-  padding:20px 10px;position:relative;
-}
-/* Field lines */
-.pitch-surface::before{
-  content:'';position:absolute;inset:8px;
-  border:1px solid rgba(255,255,255,0.05);border-radius:4px;
-  pointer-events:none;
-}
-.pitch-surface::after{
-  content:'';position:absolute;left:50%;top:8px;bottom:8px;
-  width:1px;background:rgba(255,255,255,0.04);
-  pointer-events:none;
-}
-.p-row{display:flex;justify-content:center;gap:4px;margin-bottom:12px}
+.pitch-hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.pitch-hdr-left{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+.pitch-hdr-hint{font-size:10px;color:var(--muted)}
+.pitch-surface{background:linear-gradient(180deg,#143d1e 0%,#195228 30%,#1d5c2d 50%,#195228 70%,#143d1e 100%);padding:18px 10px;position:relative;user-select:none}
+.pitch-surface::before{content:'';position:absolute;inset:8px;border:1px solid rgba(255,255,255,0.05);border-radius:4px;pointer-events:none}
+.p-row{display:flex;justify-content:center;gap:4px;margin-bottom:10px}
 .p-row:last-child{margin-bottom:0}
 
 /* Player chips */
-.pchip{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.pchip{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:grab;position:relative;transition:transform 0.15s;-webkit-user-drag:element}
+.pchip:active{cursor:grabbing}
+.pchip.dragging{opacity:0.4;transform:scale(0.95)}
+.pchip.drag-over .pshirt{box-shadow:0 0 0 2px var(--purple-l)}
+.pshirt{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;position:relative;transition:transform 0.15s,box-shadow 0.15s;border:1px solid rgba(255,255,255,0.1);letter-spacing:0.5px;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
 .pchip:hover .pshirt{transform:scale(1.08);box-shadow:0 4px 16px rgba(0,0,0,0.4)}
-.pshirt{
-  width:44px;height:44px;border-radius:10px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:10px;font-weight:800;position:relative;
-  transition:transform 0.15s,box-shadow 0.15s;
-  border:1px solid rgba(255,255,255,0.1);
-  letter-spacing:0.5px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.3);
-}
-/* Club colour shirts - will be set dynamically */
-.pshirt.s-GK{background:#e65100;color:#fff}
-.pshirt.s-DEF{background:#1565c0;color:#fff}
-.pshirt.s-MID{background:#4a148c;color:#fff}
-.pshirt.s-FWD{background:#1b5e20;color:#fff}
-
-/* Captain/VC badges */
-.cap-badge,.vc-badge{
-  position:absolute;top:-5px;right:-5px;
-  width:15px;height:15px;border-radius:50%;
-  font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;
-}
+.cap-badge,.vc-badge{position:absolute;top:-5px;right:-5px;width:15px;height:15px;border-radius:50%;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center}
 .cap-badge{background:#f59e0b;color:#000}
 .vc-badge{background:#7c5cbf;color:#fff}
+.dgw-tag{position:absolute;top:-5px;left:-5px;background:#22c55e;color:#000;font-size:7px;font-weight:800;padding:1px 4px;border-radius:3px}
+.pname{font-size:8px;font-weight:700;color:#fff;text-align:center;max-width:52px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,0.8)}
+.pprice{font-size:8px;color:rgba(255,255,255,0.55)}
 
-/* DGW badge */
-.dgw-tag{
-  position:absolute;top:-5px;left:-5px;
-  background:#22c55e;color:#000;
-  font-size:7px;font-weight:800;padding:1px 4px;border-radius:3px;
-  letter-spacing:0.3px;
-}
-
-/* Injury overlay */
-.injury-overlay{
-  position:absolute;inset:0;border-radius:10px;
-  background:rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;
-  font-size:8px;font-weight:800;color:#fff;
-}
-
-.pname{
-  font-size:8px;font-weight:700;color:#fff;
-  text-align:center;max-width:52px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  text-shadow:0 1px 3px rgba(0,0,0,0.8);
-}
-.pprice{font-size:8px;color:rgba(255,255,255,0.55);text-shadow:0 1px 2px rgba(0,0,0,0.8)}
+/* Player context menu */
+.player-menu{position:fixed;z-index:500;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:6px;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,0.5);display:none}
+.player-menu-item{padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;color:var(--text);transition:background 0.1s;display:flex;align-items:center;gap:8px}
+.player-menu-item:hover{background:var(--bg4)}
+.player-menu-item.danger{color:var(--red)}
+.player-menu-divider{height:1px;background:var(--border);margin:4px 0}
 
 /* Bench */
-.bench-wrap{
-  background:rgba(0,0,0,0.2);border-top:1px dashed rgba(255,255,255,0.06);
-  padding:10px;
-}
+.bench-wrap{background:rgba(0,0,0,0.2);border-top:1px dashed rgba(255,255,255,0.06);padding:10px}
 .bench-lbl{font-size:8px;color:rgba(255,255,255,0.2);text-align:center;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
 .bench-row{display:flex;justify-content:center;gap:14px}
 
-/* ── ERROR / LOADING ── */
-.gen-loading{
-  display:none;align-items:center;justify-content:center;
-  gap:12px;padding:40px;color:var(--muted);font-size:13px;
-}
-.gen-error{
-  display:none;margin:0 20px 16px;padding:14px 16px;
-  background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);
-  border-radius:10px;font-size:12px;color:#fca5a5;
-}
-.spin{
-  width:18px;height:18px;border-radius:50%;
-  border:2px solid var(--border);border-top-color:var(--purple-l);
-  animation:spin 0.8s linear infinite;display:inline-block;flex-shrink:0;
-}
-@keyframes spin{to{transform:rotate(360deg)}}
+/* Drop zones */
+.drop-zone{position:relative}
+.drop-zone.drag-active{outline:2px dashed var(--purple-l);outline-offset:3px;border-radius:10px}
 
-/* ── INJURY ALERT ── */
-.injury-alerts{display:flex;flex-direction:column;gap:5px;padding:0 20px 10px;flex-shrink:0}
-.injury-alert{
-  display:flex;align-items:center;gap:8px;padding:8px 12px;
-  background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18);
-  border-radius:8px;font-size:11px;
-}
-.i-dot{width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0}
-.i-dot.amber{background:var(--amber)}
-.i-text{color:rgba(255,255,255,0.55)}
-.i-text strong{color:#fca5a5}
+/* ── TEAM ENTRY (My Squad tab) ── */
+.my-squad-wrap{padding:20px;flex:1;overflow-y:auto}
+.squad-entry-grid{display:grid;grid-template-columns:1fr 300px;gap:20px}
+.squad-entry-left{display:flex;flex-direction:column;gap:14px}
+.entry-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.entry-section-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.entry-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+.entry-section-count{font-size:11px;font-weight:700;color:var(--purple-l)}
+.entry-body{padding:12px}
+.formation-row{display:flex;gap:6px;margin-bottom:12px}
+.f-btn{background:var(--bg3);border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--body);transition:all 0.12s}
+.f-btn.active{background:rgba(124,92,191,0.15);border-color:rgba(124,92,191,0.4);color:var(--purple-l)}
+.search-wrap{position:relative;margin-bottom:8px}
+.search-wrap input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--text);outline:none;font-family:var(--body)}
+.search-wrap input:focus{border-color:var(--purple)}
+.search-drop{display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.sr-item{padding:9px 12px;cursor:pointer;font-size:11px;display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--border);transition:background 0.1s}
+.sr-item:last-child{border-bottom:none}
+.sr-item:hover{background:var(--bg4)}
+.sr-pos{color:var(--muted);font-size:10px;flex-shrink:0}
+.player-slot{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:7px;background:var(--bg3);margin-bottom:4px;font-size:12px;cursor:pointer;transition:background 0.1s;border:1px solid transparent}
+.player-slot:hover{background:var(--bg4)}
+.player-slot.cap{border-color:rgba(245,158,11,0.4)}
+.player-slot.vc{border-color:rgba(124,92,191,0.4)}
+.player-slot.empty{border:1px dashed var(--border);color:var(--muted);font-size:11px;justify-content:center}
+.slot-left{display:flex;align-items:center;gap:8px}
+.slot-pos{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;flex-shrink:0}
+.slot-name{font-weight:600;color:#fff}
+.slot-meta{font-size:9px;color:var(--muted);margin-top:1px}
+.slot-right{display:flex;align-items:center;gap:6px}
+.slot-badge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px}
+.slot-badge.cap{background:rgba(245,158,11,0.15);color:var(--amber)}
+.slot-badge.vc{background:rgba(124,92,191,0.15);color:var(--purple-l)}
+.slot-rm{color:var(--red);font-size:11px;cursor:pointer;opacity:0.6;padding:2px 4px}
+.slot-rm:hover{opacity:1}
+.save-squad-btn{width:100%;background:var(--purple);color:#fff;border:none;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--body);margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px}
+.sync-btn{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--green);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--body);margin-top:6px;display:flex;align-items:center;justify-content:center;gap:6px}
+.squad-entry-right{display:flex;flex-direction:column;gap:14px}
+.settings-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.settings-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.setting-lbl{font-size:12px;color:var(--muted)}
+.ft-pills{display:flex;gap:4px;flex-wrap:wrap}
+.ft-pill{background:var(--bg3);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--body)}
+.ft-pill.active{background:rgba(124,92,191,0.2);border-color:var(--purple);color:var(--purple-l)}
+.bank-input{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--text);width:70px;outline:none;font-family:var(--body)}
+.transfer-btn{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--body);margin-top:4px}
+.transfer-btn:hover{background:var(--bg4)}
+.transfer-results{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.tr-hdr{padding:12px 16px;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+.transfer-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px}
+.transfer-row:last-child{border-bottom:none}
+.tr-rank{font-size:10px;color:var(--muted);width:16px;flex-shrink:0;text-align:center}
+.tr-out{color:var(--red)}
+.tr-in{color:var(--green)}
+.tr-arrow{font-size:14px;flex-shrink:0}
+.tr-info{flex:1}
+.tr-name{font-weight:600;color:#fff}
+.tr-meta{font-size:9px;color:var(--muted);margin-top:1px}
+.tr-gain{font-family:var(--display);font-size:13px;font-weight:800;color:var(--green)}
+.tr-hit{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600}
+.tr-hit.hit{background:rgba(239,68,68,0.1);color:var(--red)}
+.tr-hit.free{background:rgba(34,197,94,0.1);color:var(--green)}
+.tp-briefing{padding:14px;background:rgba(124,92,191,0.05);border-top:1px solid var(--border)}
+.tp-brief-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.tp-brief-text{font-size:11px;line-height:1.75;color:rgba(255,255,255,0.6)}
 
 /* ── RIGHT PANEL ── */
-.right-panel{
-  width:var(--right-w);flex-shrink:0;
-  background:var(--bg2);border-left:1px solid var(--border);
-  display:flex;flex-direction:column;overflow-y:auto;
-}
-
-/* Briefing */
-.briefing-section{padding:16px;border-bottom:1px solid var(--border)}
-.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.section-title{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600}
-.claude-badge{
-  display:flex;align-items:center;gap:4px;
-  font-size:9px;color:var(--purple-l);font-weight:600;
-  background:rgba(124,92,191,0.1);padding:3px 8px;border-radius:10px;
-  border:1px solid rgba(124,92,191,0.2);
-}
+.right-panel{width:var(--right-w);flex-shrink:0;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.rp-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+.rp-title{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.claude-badge{font-size:9px;color:var(--purple-l);background:rgba(124,92,191,0.1);padding:2px 8px;border-radius:10px;border:1px solid rgba(124,92,191,0.2)}
 .briefing-text{font-size:11px;line-height:1.75;color:rgba(255,255,255,0.6)}
 .briefing-text strong{color:rgba(255,255,255,0.9);font-weight:600}
-.briefing-skeleton{display:flex;flex-direction:column;gap:6px}
-.skel{height:10px;border-radius:4px;background:var(--bg4);animation:shimmer 1.5s infinite}
-.skel.w-full{width:100%}
-.skel.w-3q{width:75%}
-.skel.w-half{width:50%}
+.skel{height:10px;border-radius:4px;background:var(--bg4);animation:shimmer 1.5s infinite;margin-bottom:6px}
 @keyframes shimmer{0%,100%{opacity:0.4}50%{opacity:0.7}}
-
-/* Squad stats */
-.squad-stats{padding:14px 16px;border-bottom:1px solid var(--border)}
 .mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .mini-card{background:var(--bg3);border-radius:8px;padding:10px 12px;border:1px solid var(--border)}
 .mini-lbl{font-size:9px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:1px}
 .mini-val{font-size:17px;font-weight:800;letter-spacing:-0.5px;font-family:var(--display)}
-.mini-val.purple{color:var(--purple-l)}
-.mini-val.green{color:var(--green)}
-.mini-val.blue{color:var(--blue)}
-.mini-val.orange{color:var(--orange)}
-
-/* Top players */
-.top-players-section{padding:14px 16px;border-bottom:1px solid var(--border)}
-.player-rank-row{
-  display:flex;align-items:center;gap:8px;padding:7px 0;
-  border-bottom:1px solid var(--border);cursor:pointer;
-  transition:opacity 0.12s;
-}
-.player-rank-row:last-child{border-bottom:none}
-.player-rank-row:hover{opacity:0.75}
+.rank-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:opacity 0.12s}
+.rank-row:last-child{border-bottom:none}
+.rank-row:hover{opacity:0.75}
 .rank-num{font-size:10px;color:var(--muted);font-weight:700;width:14px;flex-shrink:0;text-align:center}
 .pos-dot{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;flex-shrink:0;color:#fff}
-.pos-dot.GK{background:#e65100}
-.pos-dot.DEF{background:#1565c0}
-.pos-dot.MID{background:#4a148c}
-.pos-dot.FWD{background:#1b5e20}
 .rank-info{flex:1;min-width:0}
 .rank-name{font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rank-meta{font-size:9px;color:var(--muted);margin-top:1px}
@@ -348,114 +242,22 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
 .rank-mom.dn{color:var(--red)}
 .rank-mom.fl{color:var(--muted)}
 
-/* ── TRANSFER PLANNER TAB ── */
-.tp-wrap{padding:20px;flex:1;overflow-y:auto}
-.tp-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
-.tp-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
-.tp-label{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
-.tp-count{color:var(--purple-l);font-weight:700}
-.player-search-wrap{position:relative;margin-bottom:8px}
-.player-search-wrap input{
-  width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;
-  padding:9px 12px;font-size:12px;color:var(--text);outline:none;font-family:var(--body);
-  transition:border-color 0.15s;
-}
-.player-search-wrap input:focus{border-color:var(--purple)}
-.search-dropdown{
-  display:none;position:absolute;top:100%;left:0;right:0;
-  background:var(--bg3);border:1px solid var(--border2);border-radius:8px;
-  z-index:100;max-height:200px;overflow-y:auto;margin-top:4px;
-}
-.sr-item{
-  padding:9px 12px;cursor:pointer;font-size:11px;
-  display:flex;justify-content:space-between;gap:8px;
-  border-bottom:1px solid var(--border);transition:background 0.1s;
-}
-.sr-item:last-child{border-bottom:none}
-.sr-item:hover{background:var(--bg4)}
-.sr-pos{color:var(--muted);font-size:10px;flex-shrink:0}
-.picked-list{display:flex;flex-direction:column;gap:4px;min-height:120px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px}
-.picked-row{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:5px 8px;border-radius:6px;background:var(--bg2);font-size:11px;
-}
-.picked-name{font-weight:600;color:#fff}
-.picked-meta{color:var(--muted);font-size:9px}
-.picked-rm{cursor:pointer;color:var(--red);font-size:11px;padding:0 4px;opacity:0.6}
-.picked-rm:hover{opacity:1}
-.tp-settings{display:flex;flex-direction:column;gap:10px}
-.tp-row{display:flex;align-items:center;justify-content:space-between}
-.tp-lbl{font-size:11px;color:var(--muted)}
-.ft-pills{display:flex;gap:5px;flex-wrap:wrap}
-.ft-pill{
-  background:var(--bg3);border:1px solid var(--border);color:var(--muted);
-  padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;
-  cursor:pointer;transition:all 0.12s;font-family:var(--body);
-}
-.ft-pill.active{background:rgba(124,92,191,0.2);border-color:var(--purple);color:var(--purple-l)}
-.bank-input{
-  background:var(--bg3);border:1px solid var(--border2);border-radius:6px;
-  padding:5px 10px;font-size:12px;color:var(--text);width:70px;outline:none;font-family:var(--body);
-}
-.tp-run-btn{
-  background:var(--purple);color:#fff;border:none;
-  padding:11px;border-radius:8px;font-size:13px;font-weight:700;
-  cursor:pointer;font-family:var(--body);width:100%;margin-top:4px;
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  transition:background 0.15s;
-}
-.tp-run-btn:hover{background:var(--purple-l)}
-.tp-results{margin-top:20px}
-.tp-section-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px}
-.transfer-card{
-  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
-  padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;
-}
-.transfer-card:hover{border-color:var(--border2)}
-.tc-rank{font-size:11px;color:var(--muted);font-weight:700;width:18px;flex-shrink:0;text-align:center}
-.tc-arrow{font-size:18px;flex-shrink:0}
-.tc-arrow.in{color:var(--green)}
-.tc-arrow.out{color:var(--red)}
-.tc-info{flex:1}
-.tc-name{font-size:13px;font-weight:700;color:#fff}
-.tc-meta{font-size:10px;color:var(--muted);margin-top:2px}
-.tc-gain{font-size:14px;font-weight:800;color:var(--green);font-family:var(--display)}
-.tc-hit-badge{font-size:10px;padding:2px 8px;border-radius:5px;font-weight:600}
-.tc-hit-badge.hit{background:rgba(239,68,68,0.1);color:var(--red)}
-.tc-hit-badge.free{background:rgba(34,197,94,0.1);color:var(--green)}
-.tp-ai-briefing{
-  background:var(--bg2);border:1px solid rgba(124,92,191,0.2);border-radius:10px;
-  padding:16px;margin-top:12px;
-}
-.tp-briefing-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.tp-briefing-text{font-size:12px;line-height:1.75;color:rgba(255,255,255,0.6)}
-
-/* ── DGW TAB ── */
-.dgw-wrap{padding:20px;flex:1;overflow-y:auto}
-.dgw-empty-msg{font-size:13px;color:var(--muted);padding:20px;text-align:center}
-.dgw-card{
-  background:var(--bg2);border:1px solid var(--border);border-radius:12px;
-  padding:16px 18px;margin-bottom:10px;
-}
+/* ── OTHER TABS ── */
+.tab-wrap{padding:20px;flex:1;overflow-y:auto}
+.section-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px}
+.dgw-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:10px}
 .dgw-card.has-dgw{border-color:rgba(34,197,94,0.2)}
 .dgw-card.has-bgw{border-color:rgba(239,68,68,0.2)}
-.dgw-gw-label{font-family:var(--display);font-size:20px;font-weight:700;margin-bottom:10px;color:#fff}
-.dgw-type-badge{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;
-  margin-bottom:8px;margin-right:6px;letter-spacing:0.3px;
-}
-.dgw-type-badge.dgw{background:rgba(34,197,94,0.12);color:var(--green);border:1px solid rgba(34,197,94,0.2)}
-.dgw-type-badge.bgw{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.2)}
+.dgw-gw{font-family:var(--display);font-size:20px;font-weight:700;margin-bottom:10px;color:#fff}
+.dgw-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;margin-bottom:8px;margin-right:6px}
+.dgw-badge.dgw{background:rgba(34,197,94,0.12);color:var(--green);border:1px solid rgba(34,197,94,0.2)}
+.dgw-badge.bgw{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.2)}
 .dgw-teams{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.dgw-team-chip{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 11px}
+.dgw-team{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 11px}
 .dgw-team-name{font-size:11px;font-weight:600;color:#fff}
 .dgw-team-opp{font-size:9px;color:var(--muted);margin-top:1px}
-
-/* ── CHIP ADVISOR TAB ── */
-.chips-wrap{padding:20px;flex:1;overflow-y:auto}
-.chip-recs-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
-.chip-rec-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px}
+.chip-recs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.chip-rec{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px}
 .chip-rec-icon{font-size:20px;margin-bottom:8px}
 .chip-rec-name{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:4px}
 .chip-rec-gw{font-family:var(--display);font-size:20px;font-weight:700;color:#fff;margin-bottom:4px}
@@ -463,43 +265,14 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
 .chip-rec-verdict{font-size:10px;font-weight:700;margin-top:6px}
 .chip-rec-verdict.excellent{color:var(--green)}
 .chip-rec-verdict.good{color:var(--amber)}
-.chip-rec-verdict.poor{color:var(--muted)}
-.chip-plan-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px}
-.chip-plan-row{
-  display:grid;grid-template-columns:48px 1fr repeat(4,60px);
-  align-items:center;gap:8px;padding:9px 12px;
-  background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;
-}
-.cp-gw{font-family:var(--display);font-size:16px;font-weight:700;color:#fff}
-.cp-best{font-size:10px;color:var(--purple-l);font-weight:600}
-.cp-score{text-align:center}
-.cp-score-val{font-size:14px;font-weight:800;font-family:var(--display)}
-.cp-score.excellent .cp-score-val{color:var(--green)}
-.cp-score.good .cp-score-val{color:var(--amber)}
-.cp-score.poor .cp-score-val{color:var(--muted)}
-.cp-score-lbl{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px}
-
-/* ── FIXTURE TICKER TAB ── */
-.ticker-wrap{padding:20px;flex:1;overflow-y:auto}
-.ticker-legend{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-.tl-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)}
-.tl-dot{width:8px;height:8px;border-radius:2px}
-.ticker-table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+.ticker-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
 .ticker-table{width:100%;border-collapse:collapse;font-size:11px}
-.ticker-table th{
-  padding:8px 6px;text-align:center;font-size:9px;
-  text-transform:uppercase;letter-spacing:1px;color:var(--muted);
-  background:var(--bg2);border-bottom:1px solid var(--border);font-weight:600;
-}
+.ticker-table th{padding:8px 6px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);background:var(--bg2);border-bottom:1px solid var(--border);font-weight:600}
 .ticker-table th:first-child{text-align:left;padding-left:14px;min-width:90px}
 .ticker-table td{padding:5px 4px;text-align:center;border-bottom:1px solid var(--border);background:var(--bg2)}
 .ticker-table td:first-child{text-align:left;padding-left:14px;font-weight:600;font-size:11px;color:#fff;white-space:nowrap}
 .ticker-table tr:last-child td{border-bottom:none}
-.fix-cell{
-  display:inline-flex;flex-direction:column;align-items:center;gap:1px;
-  padding:5px 6px;border-radius:6px;font-size:9px;font-weight:700;
-  min-width:62px;line-height:1.3;
-}
+.fix-cell{display:inline-flex;flex-direction:column;align-items:center;gap:1px;padding:5px 6px;border-radius:6px;font-size:9px;font-weight:700;min-width:62px;line-height:1.3}
 .fix-cell.fdr-1,.fix-cell.fdr-2{background:rgba(34,197,94,0.15);color:#4ade80}
 .fix-cell.fdr-3{background:rgba(234,179,8,0.12);color:#facc15}
 .fix-cell.fdr-4{background:rgba(249,115,22,0.15);color:#fb923c}
@@ -508,17 +281,7 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
 .fix-cell.dgw{box-shadow:0 0 0 1px rgba(34,197,94,0.4)}
 .fix-tag{font-size:7px;font-weight:800;letter-spacing:0.3px;opacity:0.8}
 .avg-fdr{font-weight:800;font-size:11px;font-family:var(--display)}
-
-/* ── PRICE CHANGES TAB ── */
-.prices-wrap{padding:20px;flex:1;overflow-y:auto}
-.prices-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.prices-col-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px}
-.price-card{
-  background:var(--bg2);border:1px solid var(--border);border-radius:9px;
-  padding:10px 12px;margin-bottom:6px;display:grid;
-  grid-template-columns:1fr auto auto;align-items:center;gap:8px;
-  cursor:pointer;transition:border-color 0.12s;
-}
+.price-card{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:6px;display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:8px;cursor:pointer}
 .price-card:hover{border-color:var(--border2)}
 .price-card.riser{border-left:3px solid var(--green)}
 .price-card.faller{border-left:3px solid var(--red)}
@@ -531,100 +294,61 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
 .pc-net{font-size:11px;font-weight:700;font-family:var(--display)}
 .pc-net.pos{color:var(--green)}
 .pc-net.neg{color:var(--red)}
+.prices-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.gen-loading{display:none;align-items:center;justify-content:center;gap:12px;padding:40px;color:var(--muted);font-size:13px;flex:1}
+.gen-error{display:none;margin:0 20px 16px;padding:14px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:10px;font-size:12px;color:#fca5a5}
 
-/* ── WILDCARD TAB ── */
-.wc-wrap{padding:20px;flex:1;overflow-y:auto}
-.wc-formation-row{display:flex;gap:6px;margin-bottom:16px}
-.wc-results{display:none;margin-top:20px}
-.wc-stats-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
-.wc-section-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px}
-.wc-main-grid{display:grid;grid-template-columns:1fr 300px;gap:16px}
-.wc-squad-list{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
-.wc-player-row{
-  display:grid;grid-template-columns:22px 1fr auto auto auto;
-  align-items:center;gap:8px;padding:9px 14px;
-  border-bottom:1px solid var(--border);font-size:11px;cursor:pointer;
-  transition:background 0.1s;
-}
-.wc-player-row:hover{background:var(--bg3)}
-.wc-player-row:last-child{border-bottom:none}
-.wc-pos{font-size:7px;font-weight:800;padding:3px 4px;border-radius:4px;color:#fff;text-align:center}
-.wc-name{font-weight:600;color:#fff}
-.wc-team{font-size:9px;color:var(--muted)}
-.wc-score{font-weight:800;color:var(--purple-l);font-family:var(--display)}
-.wc-fdr{font-size:10px;font-weight:700;text-align:center}
-.wc-panel{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px}
-.wc-briefing{font-size:11px;line-height:1.75;color:rgba(255,255,255,0.6)}
-.wc-briefing strong{color:rgba(255,255,255,0.9);font-weight:600}
-
-/* ── PLAYER DEEP-DIVE MODAL ── */
-#player-modal{
-  display:none;position:fixed;inset:0;z-index:1000;
-  background:rgba(0,0,0,0.75);overflow-y:auto;padding:20px;
-  backdrop-filter:blur(4px);
-}
-.modal-box{
-  max-width:840px;margin:20px auto;
-  background:var(--bg2);border:1px solid var(--border2);border-radius:16px;overflow:hidden;
-}
-.modal-header{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:18px 22px;border-bottom:1px solid var(--border);
-}
-.modal-player-name{font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:-0.5px;color:#fff}
-.modal-player-meta{font-size:11px;color:var(--muted);margin-top:3px}
-.modal-close{
-  background:var(--bg3);border:1px solid var(--border);color:var(--muted);
-  padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer;font-family:var(--body);
-}
-.modal-close:hover{border-color:var(--border2);color:var(--text)}
-#modal-loading{padding:60px;text-align:center;font-size:13px;color:var(--muted)}
-.modal-body{padding:20px;display:none}
+/* ── MODALS ── */
+#player-modal,#brief-modal{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.75);overflow-y:auto;padding:20px;backdrop-filter:blur(4px)}
+.modal-box{max-width:840px;margin:20px auto;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;overflow:hidden}
+.modal-box.sm{max-width:600px}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)}
+.modal-title{font-family:var(--display);font-size:22px;font-weight:700;color:#fff}
+.modal-meta-txt{font-size:11px;color:var(--muted);margin-top:3px}
+.modal-close{background:var(--bg3);border:1px solid var(--border);color:var(--muted);padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer;font-family:var(--body)}
+.modal-body{padding:20px}
 .verdict-box{padding:14px 18px;border-radius:10px;margin-bottom:18px;border:1px solid}
 .verdict-box.buy{background:rgba(34,197,94,0.07);border-color:rgba(34,197,94,0.25)}
 .verdict-box.hold{background:rgba(245,158,11,0.07);border-color:rgba(245,158,11,0.25)}
 .verdict-box.sell{background:rgba(239,68,68,0.07);border-color:rgba(239,68,68,0.25)}
-.verdict-label{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:2px;margin-bottom:6px}
-.verdict-label.buy{color:var(--green)}
-.verdict-label.hold{color:var(--amber)}
-.verdict-label.sell{color:var(--red)}
+.verdict-lbl{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:2px;margin-bottom:6px}
+.verdict-lbl.buy{color:var(--green)}
+.verdict-lbl.hold{color:var(--amber)}
+.verdict-lbl.sell{color:var(--red)}
 .verdict-body{font-size:12px;line-height:1.75;color:rgba(255,255,255,0.55)}
-.verdict-body strong{color:rgba(255,255,255,0.85);font-weight:600}
-.modal-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
-.modal-two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.modal-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.modal-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .modal-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px}
 .modal-card-title{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px}
 .gw-bar-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:10px}
-.gw-bar-label{color:var(--muted);width:28px;flex-shrink:0;font-family:var(--display)}
 .gw-bar-bg{flex:1;height:7px;background:var(--bg4);border-radius:3px;overflow:hidden}
-.gw-bar-fill{height:100%;border-radius:3px;transition:width 0.3s}
-.gw-bar-val{width:18px;text-align:right;color:var(--text);flex-shrink:0;font-weight:700}
+.gw-bar-fill{height:100%;border-radius:3px}
 .fix-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;background:var(--bg4);margin-bottom:4px;font-size:10px}
-.fix-gw{color:var(--muted);width:28px;flex-shrink:0;font-family:var(--display)}
-.fix-opp{flex:1;font-weight:600}
-.fix-fdr-pill{font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px}
-.modal-bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .alt-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg4);border-radius:7px;margin-bottom:5px;font-size:11px}
-.alt-name{font-weight:600;color:#fff}
-.alt-team{color:var(--muted);font-size:9px;margin-left:4px}
-.alt-right{text-align:right}
-.alt-price{color:var(--green);font-weight:700}
-.alt-form{color:var(--muted);font-size:9px}
-.home-away-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.ha-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .ha-card{background:var(--bg4);border-radius:7px;padding:8px 10px}
 .ha-lbl{font-size:9px;color:var(--muted);margin-bottom:3px}
 .ha-val{font-size:16px;font-weight:800;font-family:var(--display);color:#fff}
 
-/* ── UTILITIES ── */
-.fdr-col{color:var(--green)}
-.fdr-1,.fdr-2{color:var(--green)}
-.fdr-3{color:var(--amber)}
-.fdr-4{color:var(--orange)}
-.fdr-5{color:var(--red)}
+/* Player menu */
+#player-ctx-menu{position:fixed;z-index:999;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:6px;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,0.5);display:none}
+.ctx-item{padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:8px}
+.ctx-item:hover{background:var(--bg4)}
+.ctx-item.danger{color:var(--red)}
+.ctx-divider{height:1px;background:var(--border);margin:4px 0}
+
+/* Brief modal */
+.brief-box{max-width:600px;margin:40px auto;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;overflow:hidden}
+.brief-hdr{background:linear-gradient(135deg,var(--purple),var(--blue));padding:20px 22px;color:#fff}
+.brief-hdr-gw{font-size:11px;opacity:0.7;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
+.brief-hdr-title{font-size:20px;font-weight:800;margin-bottom:3px}
+.brief-hdr-deadline{font-size:12px;opacity:0.75}
+.brief-body{padding:20px}
+.brief-injuries{margin-bottom:14px}
+.brief-inj-row{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18);border-radius:8px;font-size:11px;margin-bottom:5px}
+.brief-text{font-size:13px;line-height:1.8;color:rgba(255,255,255,0.7)}
+.brief-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .hidden{display:none!important}
-.text-center{text-align:center}
-.mt8{margin-top:8px}
-.loading-state{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);gap:10px;font-size:12px}
 </style>
 </head>
 <body>
@@ -633,179 +357,176 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
 <nav class="topnav">
   <div class="nav-logo">
     <div class="logo-mark">AI</div>
-    <div class="nav-brand-text">
+    <div>
       <div class="nav-title">FPL Manager</div>
       <div class="nav-sub">2026/27 Season</div>
     </div>
   </div>
   <div class="nav-center">
-    <span class="nav-gw-badge" id="nav-gw">GW —</span>
-    <span class="nav-deadline" id="nav-deadline">Loading deadline...</span>
+    <span class="nav-gw" id="nav-gw">GW —</span>
+    <span class="nav-deadline" id="nav-deadline">Loading...</span>
   </div>
   <div class="nav-right">
     <div class="nav-live"><span class="live-dot"></span>Live</div>
-    <button class="btn-refresh" id="main-gen-btn" onclick="run()">
-      <span class="spin" id="nav-spin" style="display:none"></span>
-      <span id="nav-btn-txt">Generate Squad</span>
+    <button class="btn-gen" id="gen-btn" onclick="runAISquad()">
+      <span class="spin" id="gen-spin" style="display:none"></span>
+      <span id="gen-txt">AI Squad Picker</span>
     </button>
   </div>
 </nav>
 
-<!-- APP SHELL -->
-<div class="app-shell">
+<!-- APP -->
+<div class="app">
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="sidebar-greeting">
-      <div class="greeting-text">Good luck this Gameweek, Hartej! 👋</div>
-      <div class="greeting-sub">Your AI manager is ready</div>
+    <div class="sb-greeting">
+      <div class="sb-greeting-text">Good luck this Gameweek, Hartej! 👋</div>
+      <div class="sb-greeting-sub">Your AI manager is ready</div>
     </div>
 
-    <div class="nav-section">Squad</div>
-    <div class="nav-item active" onclick="showTab('squad',this)">
-      <div class="nav-icon">⚽</div>
-      <span class="nav-label">Squad Builder</span>
-    </div>
-    <div class="nav-item" onclick="showTab('transfers',this)">
-      <div class="nav-icon">⇄</div>
-      <span class="nav-label">Transfers</span>
-      <span class="nav-badge" id="ft-badge">—</span>
-    </div>
-    <div class="nav-item" onclick="showTab('wildcard',this)">
-      <div class="nav-icon">🃏</div>
-      <span class="nav-label">Wildcard</span>
+    <!-- Chip alert -->
+    <div class="chip-alert-card" id="chip-alert-card">
+      <div class="chip-alert-title" id="chip-alert-title">Chip Available</div>
+      <div class="chip-alert-text" id="chip-alert-text">—</div>
+      <button class="chip-alert-btn" onclick="showTab('chips',null)">View Chip Plan →</button>
     </div>
 
-    <div class="nav-section">Intelligence</div>
-    <div class="nav-item" onclick="showTab('ticker',this)">
-      <div class="nav-icon">📊</div>
-      <span class="nav-label">Fixture Ticker</span>
+    <div class="sb-section">My Team</div>
+    <div class="sb-item active" id="nav-mysquad" onclick="showTab('mysquad',this)">
+      <div class="sb-icon">⚽</div><span>My Squad</span>
     </div>
-    <div class="nav-item" onclick="showTab('dgw',this)">
-      <div class="nav-icon">2x</div>
-      <span class="nav-label">DGW / BGW</span>
-      <span class="nav-badge warn" id="dgw-badge" style="display:none">!</span>
-    </div>
-    <div class="nav-item" onclick="showTab('chips',this)">
-      <div class="nav-icon">♟</div>
-      <span class="nav-label">Chip Advisor</span>
-    </div>
-    <div class="nav-item" onclick="showTab('prices',this)">
-      <div class="nav-icon">💰</div>
-      <span class="nav-label">Price Changes</span>
+    <div class="sb-item" id="nav-aisquad" onclick="showTab('aisquad',this)">
+      <div class="sb-icon">🤖</div><span>AI Picks</span>
+      <span class="sb-badge" id="ai-gw-badge">GW—</span>
     </div>
 
-    <!-- AI Card -->
-    <div class="ai-card" style="margin-top:auto">
-      <div class="ai-card-header">
+    <div class="sb-section">Intelligence</div>
+    <div class="sb-item" id="nav-ticker" onclick="showTab('ticker',this)">
+      <div class="sb-icon">📊</div><span>Fixture Ticker</span>
+    </div>
+    <div class="sb-item" id="nav-dgw" onclick="showTab('dgw',this)">
+      <div class="sb-icon">2x</div><span>DGW / BGW</span>
+      <span class="sb-badge warn hidden" id="dgw-badge">!</span>
+    </div>
+    <div class="sb-item" id="nav-chips" onclick="showTab('chips',this)">
+      <div class="sb-icon">♟</div><span>Chip Advisor</span>
+    </div>
+    <div class="sb-item" id="nav-prices" onclick="showTab('prices',this)">
+      <div class="sb-icon">💰</div><span>Price Changes</span>
+    </div>
+
+    <div class="ai-card">
+      <div class="ai-card-hdr">
         <div class="ai-avatar">🤖</div>
-        <div>
-          <div class="ai-name">AI Manager</div>
-          <div class="ai-role">Powered by Claude</div>
-        </div>
+        <div><div class="ai-name">AI Manager</div><div class="ai-role">Powered by Claude</div></div>
       </div>
-      <button class="ai-ask-btn" onclick="loadDailyBriefing()" id="daily-brief-btn">Get Daily Briefing</button>
+      <button class="ai-btn" onclick="loadDailyBriefing()">📋 Get Daily Briefing</button>
+      <button class="ai-btn" onclick="syncFromFPL()" style="margin-top:4px;color:var(--green)">↻ Sync from FPL</button>
     </div>
   </aside>
 
-  <!-- CENTER CONTENT -->
+  <!-- CENTER -->
   <main class="center">
 
-    <!-- ── SQUAD BUILDER TAB ── -->
-    <div class="tab-content active" id="tab-squad">
-
-      <div class="page-header">
+    <!-- ══ MY SQUAD TAB ══ -->
+    <div class="tab-content active" id="tab-mysquad">
+      <div class="page-hdr">
         <div>
-          <div class="page-title">Your optimal <span>squad</span></div>
-          <div class="page-sub">AI-optimised using xPts model v4 · DGW weighted · injury adjusted</div>
+          <div class="page-title">My <span>Squad</span></div>
+          <div class="page-sub">Enter your actual FPL team · saved to your profile · right-click players to set captain</div>
         </div>
       </div>
 
-      <div class="formation-row" id="formation-btns">
-        <button class="f-btn active" onclick="setFormation(this,'4-3-3')">4-3-3</button>
-        <button class="f-btn" onclick="setFormation(this,'4-4-2')">4-4-2</button>
-        <button class="f-btn" onclick="setFormation(this,'3-5-2')">3-5-2</button>
-        <button class="f-btn" onclick="setFormation(this,'3-4-3')">3-4-3</button>
-        <button class="f-btn" onclick="setFormation(this,'5-3-2')">5-3-2</button>
-      </div>
-
-      <!-- Stats strip -->
-      <div class="stats-strip" id="squad-stats" style="display:none">
-        <div class="stat-card"><div class="stat-label">Squad Value</div><div class="stat-val purple" id="s-val">—</div><div class="stat-sub" id="s-bank">—</div></div>
-        <div class="stat-card"><div class="stat-label">Avg xPts / GW</div><div class="stat-val" id="s-xpts">—</div><div class="stat-sub">starting XI</div></div>
-        <div class="stat-card"><div class="stat-label">Captain</div><div class="stat-val orange" id="s-cap" style="font-size:16px;padding-top:3px">—</div><div class="stat-sub" id="s-cap-sub">—</div></div>
-        <div class="stat-card"><div class="stat-label">Avg FDR</div><div class="stat-val blue" id="s-fdr">—</div><div class="stat-sub">next 3 GWs</div></div>
+      <!-- Chip banner -->
+      <div class="chip-banner" id="chip-banner">
+        <div class="chip-banner-inner">
+          <div class="chip-banner-icon" id="chip-banner-icon">♟</div>
+          <div class="chip-banner-text">
+            <div class="chip-banner-title" id="chip-banner-title">Chip Recommendation</div>
+            <div class="chip-banner-desc" id="chip-banner-desc">—</div>
+          </div>
+          <div class="chip-banner-score" id="chip-banner-score">—</div>
+        </div>
       </div>
 
       <!-- Injury alerts -->
       <div id="injury-alerts" class="injury-alerts"></div>
 
-      <!-- Generate loading -->
-      <div class="gen-loading" id="gen-loading">
-        <div class="spin" style="width:22px;height:22px;border-top-color:var(--purple-l)"></div>
-        <span>Building your optimal squad...</span>
-      </div>
+      <div class="my-squad-wrap">
+        <div class="squad-entry-grid">
 
-      <!-- Error -->
-      <div class="gen-error" id="gen-error"></div>
+          <!-- LEFT: XI + Bench entry -->
+          <div class="squad-entry-left">
 
-      <!-- Pitch -->
-      <div class="pitch-section" id="pitch-section" style="display:none">
-        <div class="pitch-header">
-          <div class="pitch-header-left" id="pitch-formation">Formation</div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <span style="font-size:10px;color:var(--muted)">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#22c55e;margin-right:3px"></span>DGW
-            </span>
-            <span style="font-size:10px;color:var(--muted)">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:3px"></span>Captain
-            </span>
-          </div>
-        </div>
-        <div class="pitch-surface" id="pitch-surface"></div>
-        <div class="bench-wrap">
-          <div class="bench-lbl">Bench</div>
-          <div class="bench-row" id="bench-row"></div>
-        </div>
-      </div>
-
-      <!-- Empty state -->
-      <div id="squad-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;color:var(--muted);padding:40px">
-        <div style="font-size:40px">⚽</div>
-        <div style="font-size:15px;font-weight:600;color:var(--text)">Ready to build your squad</div>
-        <div style="font-size:12px;text-align:center;max-width:280px;line-height:1.6">Click "Generate Squad" to get your AI-optimised 15-man squad for this gameweek</div>
-        <button class="btn-primary" onclick="run()" style="margin-top:8px">Generate Squad</button>
-        <button class="btn-secondary" onclick="loadSavedSquad()" style="margin-top:8px">Load Last Saved Squad</button>
-      </div>
-
-    </div>
-
-    <!-- ── TRANSFERS TAB ── -->
-    <div class="tab-content" id="tab-transfers">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Transfer <span>planner</span></div>
-          <div class="page-sub">Rank transfers by xPts gain · hit calculator included</div>
-        </div>
-      </div>
-      <div class="tp-wrap">
-        <div class="tp-grid">
-          <div class="tp-card">
-            <div class="tp-label">Current squad <span class="tp-count"><span id="pick-count">0</span>/15</span></div>
-            <div class="player-search-wrap">
-              <input id="player-search" placeholder="Search players..." autocomplete="off" oninput="searchPlayers(this.value)">
-              <div class="search-dropdown" id="search-results"></div>
+            <!-- Starting XI -->
+            <div class="entry-section">
+              <div class="entry-section-hdr">
+                <div class="entry-section-title">Starting XI</div>
+                <div class="entry-section-count"><span id="xi-count">0</span>/11</div>
+              </div>
+              <div class="entry-body">
+                <div class="formation-row" id="my-formation-row">
+                  <span style="font-size:11px;color:var(--muted);margin-right:4px">Formation:</span>
+                  <button class="f-btn" onclick="setMyFormation(this,'4-3-3')">4-3-3</button>
+                  <button class="f-btn" onclick="setMyFormation(this,'4-4-2')">4-4-2</button>
+                  <button class="f-btn" onclick="setMyFormation(this,'3-5-2')">3-5-2</button>
+                  <button class="f-btn" onclick="setMyFormation(this,'3-4-3')">3-4-3</button>
+                  <button class="f-btn active" onclick="setMyFormation(this,'5-3-2')">5-3-2</button>
+                </div>
+                <div class="search-wrap">
+                  <input id="xi-search" placeholder="Search and add to Starting XI..." autocomplete="off" oninput="searchPlayers(this.value,'xi')">
+                  <div class="search-drop" id="xi-results"></div>
+                </div>
+                <div id="xi-slots"></div>
+              </div>
             </div>
-            <div class="picked-list" id="picked-players">
-              <div style="font-size:11px;color:var(--muted);padding:8px">Search and add your 15 players above...</div>
+
+            <!-- Bench -->
+            <div class="entry-section">
+              <div class="entry-section-hdr">
+                <div class="entry-section-title">Bench</div>
+                <div class="entry-section-count"><span id="bench-count">0</span>/4</div>
+              </div>
+              <div class="entry-body">
+                <div class="search-wrap">
+                  <input id="bench-search" placeholder="Search and add to Bench..." autocomplete="off" oninput="searchPlayers(this.value,'bench')">
+                  <div class="search-drop" id="bench-results"></div>
+                </div>
+                <div id="bench-slots"></div>
+              </div>
             </div>
-            <textarea id="squad-input" style="display:none"></textarea>
+
+            <button class="save-squad-btn" onclick="saveMySquad()">
+              <span id="save-btn-txt">💾 Save My Squad</span>
+            </button>
+            <button class="sync-btn" onclick="syncFromFPL()">
+              <span id="sync-btn-txt">↻ Auto-sync from FPL (after GW finalises)</span>
+            </button>
+            <div id="save-status" style="font-size:11px;color:var(--green);text-align:center;margin-top:6px;display:none"></div>
           </div>
-          <div class="tp-card">
-            <div class="tp-label">Settings</div>
-            <div class="tp-settings">
-              <div class="tp-row">
-                <div class="tp-lbl">Free transfers</div>
+
+          <!-- RIGHT: Settings + Transfers -->
+          <div class="squad-entry-right">
+
+            <!-- Pitch preview -->
+            <div class="entry-section" id="squad-pitch-preview" style="display:none">
+              <div class="entry-section-hdr">
+                <div class="entry-section-title">Squad view</div>
+                <div style="font-size:10px;color:var(--muted)">Right-click to set C/VC</div>
+              </div>
+              <div class="pitch-surface" id="my-pitch-surface" style="padding:14px 8px"></div>
+              <div class="bench-wrap">
+                <div class="bench-lbl">Bench</div>
+                <div class="bench-row" id="my-bench-row"></div>
+              </div>
+            </div>
+
+            <!-- Transfer settings -->
+            <div class="settings-card">
+              <div class="settings-title">Transfer Planner</div>
+              <div class="setting-row">
+                <div class="setting-lbl">Free transfers</div>
                 <div class="ft-pills" id="ft-pills">
                   <button class="ft-pill active" onclick="setFT(this,1)">1 FT</button>
                   <button class="ft-pill" onclick="setFT(this,2)">2 FT</button>
@@ -815,165 +536,124 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
                   <button class="ft-pill" onclick="setFT(this,0)">Hit</button>
                 </div>
               </div>
-              <div class="tp-row">
-                <div class="tp-lbl">Bank (£m)</div>
+              <div class="setting-row">
+                <div class="setting-lbl">Bank (£m)</div>
                 <input class="bank-input" id="bank-input" type="number" value="0" min="0" max="20" step="0.1">
               </div>
-              <button class="tp-run-btn" id="tp-run-btn" onclick="runTransfers()">
-                <span id="tp-btn-txt">Find best transfers</span>
-              </button>
-              <button class="tp-run-btn" onclick="saveMySquad()" style="margin-top:8px;background:var(--bg3);border:1px solid var(--border2);color:var(--purple-l)">
-                <span>💾 Save as my squad</span>
-              </button>
-              <button class="tp-run-btn" onclick="syncFromFPL()" style="margin-top:6px;background:var(--bg3);border:1px solid var(--border2);color:var(--green);font-size:11px">
-                <span id="sync-btn-txt">↻ Auto-sync from FPL (post-GW)</span>
+              <button class="transfer-btn" onclick="runTransfers()">
+                <span id="tp-btn-txt">Find best transfers →</span>
               </button>
             </div>
-          </div>
-        </div>
-        <div id="tp-error" style="display:none;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:12px;font-size:12px;color:#fca5a5;margin-bottom:12px"></div>
-        <div id="tp-results" class="tp-results" style="display:none">
-          <div class="tp-section-title">Recommended transfers</div>
-          <div id="transfer-list"></div>
-          <div id="tp-briefing" class="tp-ai-briefing" style="display:none">
-            <div class="tp-briefing-header">
-              <div class="ai-avatar" style="width:24px;height:24px;font-size:11px">🤖</div>
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Transfer Analysis · Claude AI</div>
+
+            <!-- Transfer results -->
+            <div id="tp-error" style="display:none;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:12px;font-size:12px;color:#fca5a5"></div>
+            <div class="transfer-results" id="transfer-results" style="display:none">
+              <div class="tr-hdr">Recommended Transfers</div>
+              <div id="transfer-list"></div>
+              <div id="tp-briefing" style="display:none" class="tp-briefing">
+                <div class="tp-brief-hdr"><span>🤖</span> Transfer Analysis · Claude AI</div>
+                <div class="tp-brief-text" id="tp-briefing-text"></div>
+              </div>
             </div>
-            <div class="tp-briefing-text" id="tp-briefing-text"></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ── DGW/BGW TAB ── -->
-    <div class="tab-content" id="tab-dgw">
-      <div class="page-header">
+    <!-- ══ AI SQUAD PICKER TAB ══ -->
+    <div class="tab-content" id="tab-aisquad">
+      <div class="page-hdr">
         <div>
-          <div class="page-title">Double & Blank <span>Gameweeks</span></div>
-          <div class="page-sub">Detected from live fixture data · updates automatically</div>
+          <div class="page-title">AI <span>picks</span></div>
+          <div class="page-sub" id="ai-squad-sub">What the AI would pick for this gameweek</div>
+        </div>
+        <div class="page-actions">
+          <div style="display:flex;gap:6px">
+            <button class="btn-secondary" onclick="setAIFormation(this,'4-3-3')">4-3-3</button>
+            <button class="btn-secondary" onclick="setAIFormation(this,'4-4-2')">4-4-2</button>
+            <button class="btn-secondary" onclick="setAIFormation(this,'3-5-2')">3-5-2</button>
+          </div>
+          <button class="btn-primary" onclick="runAISquad()">
+            <span id="ai-gen-spin" class="spin" style="display:none"></span>
+            <span id="ai-gen-txt">Generate</span>
+          </button>
         </div>
       </div>
-      <div class="dgw-wrap">
-        <div id="dgw-empty" class="dgw-empty-msg">Generate a squad first to load DGW/BGW data.</div>
+
+      <div class="gen-loading" id="gen-loading">
+        <div class="spin" style="width:22px;height:22px;border-top-color:var(--purple-l)"></div>
+        <span>Building optimal squad...</span>
+      </div>
+      <div class="gen-error" id="gen-error"></div>
+
+      <div id="ai-squad-content" style="display:none;flex:1;flex-direction:column" class="tab-content active">
+        <div class="stats-strip" id="ai-stats-strip"></div>
+        <div id="ai-injury-alerts" class="injury-alerts"></div>
+        <div class="pitch-section" id="ai-pitch-section">
+          <div class="pitch-hdr">
+            <div class="pitch-hdr-left" id="ai-pitch-label">Formation</div>
+            <div class="pitch-hdr-hint" style="font-size:10px;color:var(--muted)">
+              <span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:2px;margin-right:3px"></span>DGW
+              <span style="display:inline-block;width:8px;height:8px;background:#f59e0b;border-radius:50%;margin-left:8px;margin-right:3px"></span>Captain
+            </div>
+          </div>
+          <div class="pitch-surface" id="ai-pitch-surface"></div>
+          <div class="bench-wrap">
+            <div class="bench-lbl">Bench</div>
+            <div class="bench-row" id="ai-bench-row"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ DGW TAB ══ -->
+    <div class="tab-content" id="tab-dgw">
+      <div class="page-hdr"><div><div class="page-title">DGW / <span>BGW</span></div><div class="page-sub">Auto-detected from live fixtures</div></div></div>
+      <div class="tab-wrap">
+        <div id="dgw-empty" style="font-size:12px;color:var(--muted);padding:20px;text-align:center">Generate AI squad first to load DGW/BGW data.</div>
         <div id="dgw-list"></div>
       </div>
     </div>
 
-    <!-- ── CHIP ADVISOR TAB ── -->
+    <!-- ══ CHIP ADVISOR TAB ══ -->
     <div class="tab-content" id="tab-chips">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Chip <span>advisor</span></div>
-          <div class="page-sub">Optimal chip timing based on DGW schedule · 10 GW outlook</div>
-        </div>
-      </div>
-      <div class="chips-wrap">
-        <div id="chip-empty" style="font-size:12px;color:var(--muted);padding:20px;text-align:center">Generate a squad first to load chip recommendations.</div>
+      <div class="page-hdr"><div><div class="page-title">Chip <span>advisor</span></div><div class="page-sub">Optimal chip timing · 10 GW outlook</div></div></div>
+      <div class="tab-wrap">
+        <div id="chip-empty" style="font-size:12px;color:var(--muted);padding:20px;text-align:center">Generate AI squad first to load chip recommendations.</div>
         <div id="chip-content" style="display:none">
-          <div class="chip-recs-grid" id="chip-recs-grid"></div>
-          <div class="chip-plan-title">Gameweek by gameweek breakdown</div>
+          <div class="chip-recs" id="chip-recs-grid"></div>
+          <div class="section-title">GW by GW breakdown</div>
           <div id="chip-plan-rows"></div>
         </div>
       </div>
     </div>
 
-    <!-- ── FIXTURE TICKER TAB ── -->
+    <!-- ══ FIXTURE TICKER TAB ══ -->
     <div class="tab-content" id="tab-ticker">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Fixture <span>ticker</span></div>
-          <div class="page-sub">6-GW difficulty view · sorted by easiest run · DGW/BGW flagged</div>
-        </div>
-        <div class="page-actions">
-          <button class="btn-primary" id="ticker-btn" onclick="loadTicker()">
-            <span id="ticker-btn-txt">Load Ticker</span>
-          </button>
-        </div>
+      <div class="page-hdr">
+        <div><div class="page-title">Fixture <span>ticker</span></div><div class="page-sub">6-GW difficulty · sorted easiest first</div></div>
+        <div class="page-actions"><button class="btn-primary" id="ticker-btn" onclick="loadTicker()"><span id="ticker-btn-txt">Load Ticker</span></button></div>
       </div>
-      <div class="ticker-wrap">
-        <div class="ticker-legend">
-          <div class="tl-item"><div class="tl-dot" style="background:rgba(34,197,94,0.6)"></div> Easy (1-2)</div>
-          <div class="tl-item"><div class="tl-dot" style="background:rgba(234,179,8,0.6)"></div> Medium (3)</div>
-          <div class="tl-item"><div class="tl-dot" style="background:rgba(249,115,22,0.6)"></div> Tough (4)</div>
-          <div class="tl-item"><div class="tl-dot" style="background:rgba(239,68,68,0.6)"></div> Very Hard (5)</div>
-          <div class="tl-item"><div class="tl-dot" style="background:var(--green);outline:1px solid var(--green)"></div> DGW</div>
-          <div class="tl-item"><div class="tl-dot" style="background:var(--bg4);border:1px dashed var(--muted)"></div> BGW</div>
-        </div>
-        <div id="ticker-empty" style="font-size:12px;color:var(--muted);padding:20px;text-align:center">Click "Load Ticker" to see fixture difficulty for all 20 teams.</div>
-        <div class="ticker-table-wrap" id="ticker-table-wrap" style="display:none">
-          <table class="ticker-table">
-            <thead id="ticker-head"></thead>
-            <tbody id="ticker-body"></tbody>
-          </table>
+      <div class="tab-wrap">
+        <div id="ticker-empty" style="font-size:12px;color:var(--muted);padding:20px;text-align:center">Click "Load Ticker" to view fixture difficulty for all 20 teams.</div>
+        <div class="ticker-wrap" id="ticker-wrap" style="display:none">
+          <table class="ticker-table"><thead id="ticker-head"></thead><tbody id="ticker-body"></tbody></table>
         </div>
       </div>
     </div>
 
-    <!-- ── PRICE CHANGES TAB ── -->
+    <!-- ══ PRICE CHANGES TAB ══ -->
     <div class="tab-content" id="tab-prices">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Price <span>changes</span></div>
-          <div class="page-sub">Based on transfer momentum · prices update nightly ~01:30 UK</div>
-        </div>
-        <div class="page-actions">
-          <button class="btn-primary" id="prices-btn" onclick="loadPrices()">
-            <span id="prices-btn-txt">Load Predictions</span>
-          </button>
-        </div>
+      <div class="page-hdr">
+        <div><div class="page-title">Price <span>changes</span></div><div class="page-sub">Transfer momentum · nightly updates</div></div>
+        <div class="page-actions"><button class="btn-primary" id="prices-btn" onclick="loadPrices()"><span id="prices-btn-txt">Load Predictions</span></button></div>
       </div>
-      <div class="prices-wrap">
-        <div id="prices-empty" style="font-size:12px;color:var(--muted);padding:20px;text-align:center">Click "Load Predictions" to see predicted price changes.</div>
+      <div class="tab-wrap">
+        <div id="prices-empty" style="font-size:12px;color:var(--muted);padding:20px;text-align:center">Click "Load Predictions" to see price change predictions.</div>
         <div id="prices-content" style="display:none">
           <div class="prices-grid">
-            <div>
-              <div class="prices-col-title">▲ Predicted Risers</div>
-              <div id="risers-list"></div>
-            </div>
-            <div>
-              <div class="prices-col-title">▼ Predicted Fallers</div>
-              <div id="fallers-list"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── WILDCARD TAB ── -->
-    <div class="tab-content" id="tab-wildcard">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Wildcard <span>optimizer</span></div>
-          <div class="page-sub">Best squad from scratch · 6 GW horizon · DGW weighted</div>
-        </div>
-      </div>
-      <div class="wc-wrap">
-        <div class="wc-formation-row">
-          <button class="f-btn active" onclick="setWCF(this,'4-3-3')">4-3-3</button>
-          <button class="f-btn" onclick="setWCF(this,'4-4-2')">4-4-2</button>
-          <button class="f-btn" onclick="setWCF(this,'3-5-2')">3-5-2</button>
-          <button class="f-btn" onclick="setWCF(this,'3-4-3')">3-4-3</button>
-          <button class="f-btn" onclick="setWCF(this,'5-3-2')">5-3-2</button>
-        </div>
-        <button class="btn-primary" id="wc-btn" onclick="runWildcard()">
-          <span id="wc-btn-txt">Build Wildcard Squad</span>
-        </button>
-        <div id="wc-error" style="display:none;margin-top:12px;padding:12px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:12px;color:#fca5a5"></div>
-        <div class="wc-results" id="wc-results">
-          <div class="wc-stats-strip" id="wc-stats-strip"></div>
-          <div class="wc-main-grid">
-            <div>
-              <div class="wc-section-title">Optimal squad — ranked by wildcard score</div>
-              <div class="wc-squad-list" id="wc-squad-list"></div>
-            </div>
-            <div class="wc-panel">
-              <div class="section-header" style="margin-bottom:10px">
-                <div class="section-title">Wildcard Briefing</div>
-                <div class="claude-badge">🤖 Claude AI</div>
-              </div>
-              <div class="wc-briefing" id="wc-briefing">—</div>
-            </div>
+            <div><div class="section-title">▲ Predicted Risers</div><div id="risers-list"></div></div>
+            <div><div class="section-title">▼ Predicted Fallers</div><div id="fallers-list"></div></div>
           </div>
         </div>
       </div>
@@ -983,100 +663,67 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
 
   <!-- RIGHT PANEL -->
   <aside class="right-panel" id="right-panel">
-
-    <!-- AI Briefing -->
-    <div class="briefing-section">
-      <div class="section-header">
-        <div class="section-title">Manager Briefing</div>
-        <div class="claude-badge">🤖 Claude AI</div>
-      </div>
+    <div class="rp-section">
+      <div class="rp-title">Manager Briefing <span class="claude-badge">🤖 Claude</span></div>
       <div id="briefing-content">
-        <div class="briefing-skeleton">
-          <div class="skel w-full"></div>
-          <div class="skel w-full"></div>
-          <div class="skel w-3q"></div>
-          <div class="skel w-full"></div>
-          <div class="skel w-half"></div>
-        </div>
+        <div class="skel w-full" style="width:100%"></div>
+        <div class="skel" style="width:100%;margin-top:6px"></div>
+        <div class="skel" style="width:75%;margin-top:6px"></div>
+        <div class="skel" style="width:100%;margin-top:6px"></div>
+        <div class="skel" style="width:50%;margin-top:6px"></div>
       </div>
     </div>
-
-    <!-- Squad stats -->
-    <div class="squad-stats" id="squad-stats-panel" style="display:none">
-      <div class="section-header" style="margin-bottom:10px">
-        <div class="section-title">Squad Stats</div>
-      </div>
+    <div class="rp-section" id="rp-stats" style="display:none">
+      <div class="rp-title">Squad Stats</div>
       <div class="mini-grid">
-        <div class="mini-card"><div class="mini-lbl">Avg Form</div><div class="mini-val purple" id="r-form">—</div></div>
-        <div class="mini-card"><div class="mini-lbl">Consistency</div><div class="mini-val green" id="r-cons">—</div></div>
-        <div class="mini-card"><div class="mini-lbl">Avg FDR</div><div class="mini-val blue" id="r-fdr">—</div></div>
-        <div class="mini-card"><div class="mini-lbl">DGW in XI</div><div class="mini-val orange" id="r-dgw">—</div></div>
+        <div class="mini-card"><div class="mini-lbl">Avg Form</div><div class="mini-val" style="color:var(--purple-l)" id="r-form">—</div></div>
+        <div class="mini-card"><div class="mini-lbl">Consistency</div><div class="mini-val" style="color:var(--green)" id="r-cons">—</div></div>
+        <div class="mini-card"><div class="mini-lbl">Avg FDR</div><div class="mini-val" style="color:var(--blue)" id="r-fdr">—</div></div>
+        <div class="mini-card"><div class="mini-lbl">DGW in XI</div><div class="mini-val" style="color:var(--orange)" id="r-dgw">—</div></div>
       </div>
     </div>
-
-    <!-- Top players -->
-    <div class="top-players-section" id="top-players-section" style="display:none">
-      <div class="section-header" style="margin-bottom:10px">
-        <div class="section-title">Top Ranked</div>
-      </div>
+    <div class="rp-section" id="rp-top" style="display:none">
+      <div class="rp-title">Top Ranked</div>
       <div id="top-players-list"></div>
     </div>
-
   </aside>
-
 </div>
 
-<!-- DAILY BRIEFING MODAL -->
-<div id="briefing-modal" onclick="if(event.target.id==='briefing-modal')this.style.display='none'"
-  style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.75);padding:20px;backdrop-filter:blur(4px);overflow-y:auto">
-  <div style="max-width:600px;margin:40px auto;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;overflow:hidden">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)">
-      <div>
-        <div style="font-family:var(--display);font-size:20px;font-weight:700;color:#fff">Daily Briefing</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:3px" id="brief-meta">Your personalised AI manager update</div>
-      </div>
-      <button onclick="document.getElementById('briefing-modal').style.display='none'"
-        style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer">✕</button>
-    </div>
-    <div id="brief-loading" style="padding:40px;text-align:center;color:var(--muted)">
-      <div class="spin" style="width:22px;height:22px;margin:0 auto 12px;border-top-color:var(--purple-l)"></div>
-      Generating your daily briefing...
-    </div>
-    <div id="brief-content" style="display:none;padding:22px">
-      <div id="brief-injuries" style="margin-bottom:14px"></div>
-      <div id="brief-text" style="font-size:13px;line-height:1.8;color:rgba(255,255,255,0.7)"></div>
-      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px">
-        <div class="claude-badge">🤖 Claude AI · Powered by your saved squad</div>
-      </div>
-    </div>
-  </div>
+<!-- PLAYER CONTEXT MENU -->
+<div id="player-ctx-menu">
+  <div class="ctx-item" onclick="ctxSetCaptain()">⚽ Set as Captain</div>
+  <div class="ctx-item" onclick="ctxSetVC()">🔵 Set as Vice Captain</div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-item" onclick="ctxMoveToXI()">⬆ Move to Starting XI</div>
+  <div class="ctx-item" onclick="ctxMoveToBench()">⬇ Move to Bench</div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-item" id="ctx-deepdive" onclick="ctxDeepDive()">🔍 Player Deep Dive</div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-item danger" onclick="ctxRemove()">✕ Remove</div>
 </div>
 
-<!-- PLAYER MODAL -->
-<div id="player-modal" onclick="closeModal(event)">
-  <div class="modal-box" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <div>
-        <div class="modal-player-name" id="modal-name">Loading...</div>
-        <div class="modal-player-meta" id="modal-meta">—</div>
-      </div>
+<!-- PLAYER DEEP-DIVE MODAL -->
+<div id="player-modal" onclick="if(event.target.id==='player-modal')this.style.display='none'">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div><div class="modal-title" id="modal-name">—</div><div class="modal-meta-txt" id="modal-meta">—</div></div>
       <button class="modal-close" onclick="document.getElementById('player-modal').style.display='none'">✕ Close</button>
     </div>
     <div id="modal-loading" style="padding:60px;text-align:center;color:var(--muted)">
       <div class="spin" style="width:22px;height:22px;margin:0 auto 12px;border-top-color:var(--purple-l)"></div>
       Loading player data...
     </div>
-    <div class="modal-body" id="modal-body">
+    <div class="modal-body" id="modal-body" style="display:none">
       <div class="verdict-box" id="verdict-box">
-        <div class="verdict-label" id="verdict-label">—</div>
+        <div class="verdict-lbl" id="verdict-lbl">—</div>
         <div class="verdict-body" id="verdict-body">—</div>
       </div>
-      <div class="modal-stats-grid" id="modal-stats-grid"></div>
-      <div class="modal-two-col">
+      <div class="modal-stats" id="modal-stats"></div>
+      <div class="modal-2col">
         <div class="modal-card">
-          <div class="modal-card-title">Last 10 gameweeks</div>
-          <div id="modal-gw-bars"></div>
-          <div class="home-away-grid">
+          <div class="modal-card-title">Last 10 GWs</div>
+          <div id="modal-bars"></div>
+          <div class="ha-grid">
             <div class="ha-card"><div class="ha-lbl">Home avg</div><div class="ha-val" id="m-home">—</div></div>
             <div class="ha-card"><div class="ha-lbl">Away avg</div><div class="ha-val" id="m-away">—</div></div>
           </div>
@@ -1084,23 +731,48 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
         <div class="modal-card">
           <div class="modal-card-title">Next 6 fixtures</div>
           <div id="modal-fixtures"></div>
-          <div style="margin-top:8px;font-size:10px;color:var(--muted)">Avg FDR: <span id="m-avg-fdr" style="color:var(--text);font-weight:700">—</span></div>
+          <div style="margin-top:8px;font-size:10px;color:var(--muted)">Avg FDR: <span id="m-fdr" style="color:var(--text);font-weight:700">—</span></div>
         </div>
       </div>
-      <div class="modal-bottom-grid">
+      <div class="modal-2col">
         <div class="modal-card">
           <div class="modal-card-title">Transfer momentum</div>
           <div style="font-size:13px;font-weight:700;margin-bottom:4px" id="m-trend">—</div>
           <div style="font-size:10px;color:var(--muted)" id="m-net">—</div>
           <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
             <div class="modal-card-title">Set pieces</div>
-            <div style="font-size:11px;color:var(--text)" id="m-setpieces">None</div>
+            <div style="font-size:11px" id="m-setpieces">None</div>
           </div>
         </div>
         <div class="modal-card">
           <div class="modal-card-title">Better value alternatives</div>
-          <div id="m-alternatives"></div>
+          <div id="m-alts"></div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DAILY BRIEFING MODAL -->
+<div id="brief-modal" onclick="if(event.target.id==='brief-modal')this.style.display='none'">
+  <div class="brief-box">
+    <div class="brief-hdr">
+      <div class="brief-hdr-gw" id="brief-gw">GW —</div>
+      <div class="brief-hdr-title">Daily Briefing</div>
+      <div class="brief-hdr-deadline" id="brief-deadline">—</div>
+    </div>
+    <div id="brief-loading" style="padding:40px;text-align:center;color:var(--muted)">
+      <div class="spin" style="width:22px;height:22px;margin:0 auto 12px;border-top-color:var(--purple-l)"></div>
+      Generating your daily briefing...
+    </div>
+    <div id="brief-body-content" style="display:none">
+      <div class="brief-body">
+        <div class="brief-injuries" id="brief-injuries"></div>
+        <div class="brief-text" id="brief-text">—</div>
+      </div>
+      <div class="brief-footer">
+        <div class="claude-badge">🤖 Claude AI · Your saved squad</div>
+        <button class="modal-close" onclick="document.getElementById('brief-modal').style.display='none'">Close</button>
       </div>
     </div>
   </div>
@@ -1110,514 +782,310 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
 const API = 'https://web-production-b81c7.up.railway.app';
 
 // ── CLUB COLOURS ──
-const CLUB_COLOURS = {
-  'ARS':{'bg':'#EF0107','text':'#fff'},
-  'AVL':{'bg':'#95BFE5','text':'#670E36'},
-  'BOU':{'bg':'#DA291C','text':'#fff'},
-  'BRE':{'bg':'#e30613','text':'#fff'},
-  'BHA':{'bg':'#0057B8','text':'#fff'},
-  'CHE':{'bg':'#034694','text':'#fff'},
-  'COV':{'bg':'#59CBFF','text':'#003370'},
-  'CRY':{'bg':'#1B458F','text':'#C4122E'},
-  'EVE':{'bg':'#003399','text':'#fff'},
-  'FUL':{'bg':'#CC0000','text':'#fff'},
-  'HUL':{'bg':'#F18A01','text':'#000'},
-  'IPS':{'bg':'#0044A9','text':'#fff'},
-  'LEE':{'bg':'#FFCD00','text':'#1D428A'},
-  'LIV':{'bg':'#C8102E','text':'#fff'},
-  'MCI':{'bg':'#6CABDD','text':'#1C2C5B'},
-  'MUN':{'bg':'#DA291C','text':'#FBE122'},
-  'NEW':{'bg':'#241F20','text':'#fff'},
-  'NFO':{'bg':'#DD0000','text':'#fff'},
-  'SUN':{'bg':'#EB172B','text':'#fff'},
-  'TOT':{'bg':'#132257','text':'#fff'},
+const CLUB = {
+  'ARS':{'bg':'#EF0107','fg':'#fff'},'AVL':{'bg':'#95BFE5','fg':'#670E36'},
+  'BOU':{'bg':'#DA291C','fg':'#fff'},'BRE':{'bg':'#e30613','fg':'#fff'},
+  'BHA':{'bg':'#0057B8','fg':'#fff'},'CHE':{'bg':'#034694','fg':'#fff'},
+  'COV':{'bg':'#59CBFF','fg':'#003370'},'CRY':{'bg':'#1B458F','fg':'#C4122E'},
+  'EVE':{'bg':'#003399','fg':'#fff'},'FUL':{'bg':'#CC0000','fg':'#fff'},
+  'HUL':{'bg':'#F18A01','fg':'#000'},'IPS':{'bg':'#0044A9','fg':'#fff'},
+  'LEE':{'bg':'#FFCD00','fg':'#1D428A'},'LIV':{'bg':'#C8102E','fg':'#fff'},
+  'MCI':{'bg':'#6CABDD','fg':'#1C2C5B'},'MUN':{'bg':'#DA291C','fg':'#FBE122'},
+  'NEW':{'bg':'#241F20','fg':'#fff'},'NFO':{'bg':'#DD0000','fg':'#fff'},
+  'SUN':{'bg':'#EB172B','fg':'#fff'},'TOT':{'bg':'#132257','fg':'#fff'},
 };
+const POS_COLORS = {'GK':'#e65100','DEF':'#1565c0','MID':'#4a148c','FWD':'#1b5e20'};
 
-function getShirtStyle(team,pos){
-  const c = CLUB_COLOURS[team];
-  if(c) return `background:${c.bg};color:${c.text};`;
-  const def = {'GK':'background:#e65100;color:#fff','DEF':'background:#1565c0;color:#fff','MID':'background:#4a148c;color:#fff','FWD':'background:#1b5e20;color:#fff'};
-  return def[pos]||'background:#333;color:#fff';
+function shirtStyle(team,pos){
+  const c = CLUB[team];
+  if(c) return `background:${c.bg};color:${c.fg}`;
+  return `background:${POS_COLORS[pos]||'#333'};color:#fff`;
 }
-
-function getInitials(name){
+function initials(name){
   if(!name) return '??';
-  const parts = name.split(' ');
-  if(parts.length>=2) return (parts[0][0]+(parts[parts.length-1][0])).toUpperCase();
-  return name.slice(0,2).toUpperCase();
+  const p=name.split(' ');
+  return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():name.slice(0,2).toUpperCase();
 }
+
+// ── STATE ──
+let myXI      = [];   // [{id,name,team,pos,price,form,...}, ...]
+let myBench   = [];
+let myCaptain = null;
+let myVC      = null;
+let myFormation = '5-3-2';
+let allPlayers  = [];
+let currentFT   = 1;
+let aiSquadData = null;
+
+// context menu target
+let ctxTarget = null;
+let ctxSection = null; // 'xi' or 'bench'
 
 // ── TAB NAVIGATION ──
 function showTab(tab, btn){
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('tab-'+tab).classList.add('active');
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  const el = document.getElementById('tab-'+tab);
+  if(el) el.classList.add('active');
   if(btn) btn.classList.add('active');
-  if(tab==='transfers' && !allBootstrapPlayers.length) loadPlayers();
+  else {
+    const nb = document.getElementById('nav-'+tab);
+    if(nb) nb.classList.add('active');
+  }
+  if(tab==='mysquad' && !allPlayers.length) loadPlayers();
 }
 
-// ── FORMATION ──
-let currentFormation = '4-3-3';
-function setFormation(btn,f){
-  document.querySelectorAll('#formation-btns .f-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  currentFormation = f;
-}
-
-// ── SQUAD GENERATION ──
-let lastSquadData = null;
-
-async function run(){
-  const btn = document.getElementById('main-gen-btn');
-  document.getElementById('nav-spin').style.display='inline-block';
-  document.getElementById('nav-btn-txt').textContent='Building...';
-  btn.classList.add('loading');
-  document.getElementById('gen-loading').style.display='flex';
-  document.getElementById('gen-error').style.display='none';
-  document.getElementById('squad-empty').style.display='none';
-  document.getElementById('pitch-section').style.display='none';
-  document.getElementById('squad-stats').style.display='none';
-
+// ── LOAD PLAYERS FOR SEARCH ──
+async function loadPlayers(){
   try{
-    const res  = await fetch(`${API}/api/squad/${currentFormation}`);
+    const res  = await fetch(`${API}/api/players`);
     const json = await res.json();
-    if(!json.ok) throw new Error(json.error||'Unknown error');
-    lastSquadData = json.data;
-    renderSquad(json.data);
-    if(json.data.dgw_bgw)   renderDGW(json.data.dgw_bgw);
-    if(json.data.chip_plan) renderChips(json.data.chip_plan);
-    if(json.data.price_changes) renderPricesInline(json.data.price_changes);
-    document.getElementById('nav-btn-txt').textContent='Regenerate';
-  } catch(e){
-    document.getElementById('gen-error').style.display='block';
-    document.getElementById('gen-error').textContent='Error: '+e.message;
-    document.getElementById('squad-empty').style.display='flex';
-    document.getElementById('nav-btn-txt').textContent='Generate Squad';
-  }
-
-  document.getElementById('nav-spin').style.display='none';
-  btn.classList.remove('loading');
-  document.getElementById('gen-loading').style.display='none';
+    allPlayers = json.players || [];
+  } catch(e){ console.warn('Could not load players:', e); }
 }
 
-function renderSquad(data){
-  const squad = data.squad;
-  const gw    = data.gameweek;
-  const dl    = data.deadline;
-
-  // Update nav
-  document.getElementById('nav-gw').textContent = 'GW '+gw;
-  if(dl){
-    const d = new Date(dl);
-    document.getElementById('nav-deadline').textContent =
-      'Deadline: '+d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' '+
-      d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-  }
-
-  // Stats
-  const xi    = squad.xi||[];
-  const cap   = squad.captain||{};
-  const bench = squad.bench||[];
-  const avgXpts = xi.length ? (xi.reduce((a,p)=>a+p.xpts,0)/xi.length).toFixed(1) : '—';
-  const avgFdr  = xi.length ? (xi.reduce((a,p)=>a+(p.fdr_avg3||3),0)/xi.length).toFixed(1) : '—';
-  const dgwCount = xi.filter(p=>p.gw_type==='DGW').length;
-
-  document.getElementById('s-val').textContent  = '\u00a3'+squad.total_value+'m';
-  document.getElementById('s-bank').textContent = '\u00a3'+squad.bank+'m in bank';
-  document.getElementById('s-xpts').textContent = avgXpts;
-  document.getElementById('s-cap').textContent  = cap.name||'—';
-  document.getElementById('s-cap-sub').textContent = (cap.team||'')+(cap.xpts?' \u00b7 xPts '+cap.xpts:'');
-  document.getElementById('s-fdr').textContent  = avgFdr;
-  document.getElementById('squad-stats').style.display='grid';
-
-  // Right panel mini stats
-  const avgForm = xi.length ? (xi.reduce((a,p)=>a+(parseFloat(p.form)||0),0)/xi.length).toFixed(1) : '—';
-  const avgCons = xi.length ? (xi.reduce((a,p)=>a+(p.consistency||5),0)/xi.length).toFixed(1) : '—';
-  document.getElementById('r-form').textContent = avgForm;
-  document.getElementById('r-cons').textContent = avgCons+'/10';
-  document.getElementById('r-fdr').textContent  = avgFdr;
-  document.getElementById('r-dgw').textContent  = dgwCount;
-  document.getElementById('squad-stats-panel').style.display='block';
-
-  // Injury alerts
-  const doubts = xi.concat(bench).filter(p=>p.is_doubtful||(p.chance!=null&&p.chance<100));
-  const alertsEl = document.getElementById('injury-alerts');
-  alertsEl.innerHTML = doubts.map(p=>`
-    <div class="injury-alert">
-      <div class="i-dot ${p.chance>=75?'amber':''}"></div>
-      <div class="i-text"><strong>${p.name} ${p.chance!=null?p.chance+'%':''}</strong>${p.news?' \u2014 '+p.news:''}</div>
+// ── SEARCH ──
+function searchPlayers(q, section){
+  const dropId = section==='xi' ? 'xi-results' : 'bench-results';
+  const box    = document.getElementById(dropId);
+  if(!q||q.length<2){box.style.display='none';return;}
+  if(!allPlayers.length){box.style.display='none';return;}
+  const ql    = q.toLowerCase();
+  const inUse = new Set([...myXI,...myBench].map(p=>p.name));
+  const hits  = allPlayers.filter(p=>!inUse.has(p.name)&&
+    (p.name.toLowerCase().includes(ql)||p.full_name.toLowerCase().includes(ql))).slice(0,8);
+  if(!hits.length){box.style.display='none';return;}
+  box.innerHTML = hits.map(p=>`
+    <div class="sr-item" onclick="addPlayer(${JSON.stringify(p).replace(/"/g,'&quot;')},'${section}')">
+      <span>${p.name} <span style="color:var(--muted)">${p.team}</span></span>
+      <span class="sr-pos">${p.pos} · £${p.price}m</span>
     </div>`).join('');
-
-  // Briefing
-  const bc = document.getElementById('briefing-content');
-  bc.innerHTML = `<div class="briefing-text">${data.briefing||'No briefing available.'}</div>`;
-
-  // FT badge
-  document.getElementById('ft-badge').textContent = '2 FT';
-
-  // Top players
-  const top = (data.top_players||[]).slice(0,8);
-  const momC = m=>m>0.5?'up':m<-0.5?'dn':'fl';
-  const momS = m=>(m>0?'+':'')+parseFloat(m).toFixed(1);
-  document.getElementById('top-players-list').innerHTML = top.map((p,i)=>`
-    <div class="player-rank-row" onclick="openPlayer(${p.id},'${p.name}')">
-      <div class="rank-num">${i+1}</div>
-      <div class="pos-dot ${p.pos}" style="${getShirtStyle(p.team,p.pos)}">${getInitials(p.name)}</div>
-      <div class="rank-info">
-        <div class="rank-name">${p.name}</div>
-        <div class="rank-meta">${p.team} \u00b7 \u00a3${p.price}m \u00b7 ${p.form} form</div>
-      </div>
-      <div class="rank-xpts">${p.xpts}</div>
-      <div class="rank-mom ${momC(p.momentum||0)}">${momS(p.momentum||0)}</div>
-    </div>`).join('');
-  document.getElementById('top-players-section').style.display='block';
-
-  // Render pitch
-  renderPitch(squad, gw);
+  box.style.display='block';
 }
 
-function renderPitch(squad, gw){
-  const xi    = squad.xi||[];
-  const bench = squad.bench||[];
-  const cap   = squad.captain||{};
-  const vc    = squad.vice_captain||{};
-  const form  = squad.formation||'4-3-3';
+function addPlayer(p, section){
+  if(section==='xi'&&myXI.length>=11){alert('XI is full');return;}
+  if(section==='bench'&&myBench.length>=4){alert('Bench is full');return;}
+  if(section==='xi') myXI.push(p);
+  else myBench.push(p);
+  if(!myCaptain&&myXI.length>=1) myCaptain = myXI[0].name;
+  if(!myVC&&myXI.length>=2) myVC = myXI[1].name;
+  const inp = document.getElementById(section==='xi'?'xi-search':'bench-search');
+  inp.value='';
+  document.getElementById(section==='xi'?'xi-results':'bench-results').style.display='none';
+  renderMySquad();
+}
 
-  document.getElementById('pitch-formation').textContent = form+' \u00b7 GW'+gw;
+function removeFromXI(name){ myXI=myXI.filter(p=>p.name!==name); if(myCaptain===name)myCaptain=myXI[0]?.name||null; if(myVC===name)myVC=myXI[1]?.name||null; renderMySquad();}
+function removeFromBench(name){ myBench=myBench.filter(p=>p.name!==name); renderMySquad();}
+
+function setMyFormation(btn,f){
+  document.querySelectorAll('#my-formation-row .f-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  myFormation=f;
+}
+
+// ── RENDER MY SQUAD ──
+function renderMySquad(){
+  document.getElementById('xi-count').textContent = myXI.length;
+  document.getElementById('bench-count').textContent = myBench.length;
+
+  // Render XI slots
+  const xiEl = document.getElementById('xi-slots');
+  if(!myXI.length){
+    xiEl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:10px;text-align:center">Search and add your starting 11 above</div>';
+  } else {
+    const posO = {GK:0,DEF:1,MID:2,FWD:3};
+    const sorted = [...myXI].sort((a,b)=>posO[a.pos]-posO[b.pos]);
+    xiEl.innerHTML = sorted.map(p=>{
+      const isCap = p.name===myCaptain;
+      const isVC  = p.name===myVC;
+      return `<div class="player-slot ${isCap?'cap':isVC?'vc':''}" oncontextmenu="showCtx(event,'${p.name}','xi');return false">
+        <div class="slot-left">
+          <div class="slot-pos" style="background:${POS_COLORS[p.pos]||'#333'}">${p.pos}</div>
+          <div>
+            <div class="slot-name">${p.name}</div>
+            <div class="slot-meta">${p.team} · £${p.price}m · ${p.form} form</div>
+          </div>
+        </div>
+        <div class="slot-right">
+          ${isCap?'<span class="slot-badge cap">C</span>':''}
+          ${isVC&&!isCap?'<span class="slot-badge vc">VC</span>':''}
+          <span class="slot-rm" onclick="removeFromXI('${p.name}')">✕</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Render bench slots
+  const benchEl = document.getElementById('bench-slots');
+  if(!myBench.length){
+    benchEl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:10px;text-align:center">Search and add your 4 bench players above</div>';
+  } else {
+    benchEl.innerHTML = myBench.map(p=>`
+      <div class="player-slot" oncontextmenu="showCtx(event,'${p.name}','bench');return false">
+        <div class="slot-left">
+          <div class="slot-pos" style="background:${POS_COLORS[p.pos]||'#333'}">${p.pos}</div>
+          <div>
+            <div class="slot-name">${p.name}</div>
+            <div class="slot-meta">${p.team} · £${p.price}m</div>
+          </div>
+        </div>
+        <div class="slot-right">
+          <span class="slot-rm" onclick="removeFromBench('${p.name}')">✕</span>
+        </div>
+      </div>`).join('');
+  }
+
+  // Update mini pitch preview
+  renderMyPitch();
+}
+
+function renderMyPitch(){
+  const xi = myXI;
+  const bench = myBench;
+  if(xi.length<1){ document.getElementById('squad-pitch-preview').style.display='none'; return; }
+  document.getElementById('squad-pitch-preview').style.display='block';
 
   const gk  = xi.filter(p=>p.pos==='GK');
   const def = xi.filter(p=>p.pos==='DEF');
   const mid = xi.filter(p=>p.pos==='MID');
   const fwd = xi.filter(p=>p.pos==='FWD');
 
-  function chipHTML(p,small=false){
-    const isCap = p.id===cap.id;
-    const isVC  = p.id===vc.id;
-    const isDGW = p.gw_type==='DGW';
-    const isDoubt = p.is_doubtful||(p.chance!=null&&p.chance<100);
-    const sz = small?'width:36px;height:36px;font-size:9px':'width:44px;height:44px;font-size:11px';
-    return `<div class="pchip" onclick="openPlayer(${p.id},'${p.name}')">
-      <div class="pshirt" style="${getShirtStyle(p.team,p.pos)}${sz};border-radius:10px;position:relative">
-        ${isDGW?'<span class="dgw-tag">2x</span>':''}
+  function chip(p,sm=false){
+    const isCap=p.name===myCaptain, isVC=p.name===myVC;
+    const sz = sm?'width:34px;height:34px;font-size:9px':'width:38px;height:38px;font-size:10px';
+    return `<div class="pchip" oncontextmenu="showCtx(event,'${p.name}','xi');return false" title="${p.name}">
+      <div class="pshirt" style="${shirtStyle(p.team,p.pos)};${sz};border-radius:8px;position:relative">
         ${isCap?'<span class="cap-badge">C</span>':''}
         ${isVC&&!isCap?'<span class="vc-badge">V</span>':''}
-        ${isDoubt?'<div class="injury-overlay">!</div>':''}
-        ${getInitials(p.name)}
+        ${initials(p.name)}
       </div>
-      <div class="pname">${p.name}</div>
-      <div class="pprice">\u00a3${p.price}m</div>
+      <div class="pname" style="font-size:7px">${p.name}</div>
     </div>`;
   }
-
-  const row = ps=>`<div class="p-row">${ps.map(p=>chipHTML(p)).join('')}</div>`;
-  document.getElementById('pitch-surface').innerHTML = row(gk)+row(def)+row(mid)+row(fwd);
-  document.getElementById('bench-row').innerHTML = bench.map(p=>chipHTML(p,true)).join('');
-  document.getElementById('pitch-section').style.display='block';
+  const row = ps=>`<div class="p-row" style="margin-bottom:8px">${ps.map(p=>chip(p)).join('')}</div>`;
+  document.getElementById('my-pitch-surface').innerHTML = row(gk)+row(def)+row(mid)+row(fwd);
+  document.getElementById('my-bench-row').innerHTML = bench.map(p=>chip(p,true)).join('');
 }
 
-// ── DGW/BGW RENDERING ──
-function renderDGW(dgwData){
-  const list  = document.getElementById('dgw-list');
-  const empty = document.getElementById('dgw-empty');
-  if(!dgwData||!dgwData.length){
-    empty.style.display='block';
-    empty.textContent='No double or blank gameweeks detected in the next 10 GWs.';
-    return;
-  }
-  empty.style.display='none';
-  list.innerHTML = dgwData.map(gw=>{
-    const hasDGW = gw.dgw&&gw.dgw.length>0;
-    const hasBGW = gw.bgw&&gw.bgw.length>0;
-    const cls = hasDGW&&hasBGW?'has-dgw has-bgw':hasDGW?'has-dgw':'has-bgw';
-    const dgwHtml = hasDGW?`
-      <div><span class="dgw-type-badge dgw">2x DOUBLE \u2014 ${gw.dgw.length} team${gw.dgw.length>1?'s':''}</span>
-      <div class="dgw-teams">${gw.dgw.map(t=>`
-        <div class="dgw-team-chip">
-          <div class="dgw-team-name">${t.team}</div>
-          <div class="dgw-team-opp">vs ${t.opponents.join(' + ')} \u00b7 FDR ${t.fdr.join('/')}</div>
-        </div>`).join('')}</div></div>`:'';
-    const bgwHtml = hasBGW?`
-      <div style="margin-top:${hasDGW?'12px':'0'}"><span class="dgw-type-badge bgw">BLANK \u2014 ${gw.bgw.length} team${gw.bgw.length>1?'s':''}</span>
-      <div class="dgw-teams">${gw.bgw.map(t=>`
-        <div class="dgw-team-chip" style="border-color:rgba(239,68,68,0.2)">
-          <div class="dgw-team-name" style="color:var(--red)">${t.team}</div>
-          <div class="dgw-team-opp">No fixture</div>
-        </div>`).join('')}</div></div>`:'';
-    return `<div class="dgw-card ${cls}">
-      <div class="dgw-gw-label">GW ${gw.gw}</div>
-      ${dgwHtml}${bgwHtml}
-    </div>`;
-  }).join('');
-  // Show DGW badge in sidebar if any upcoming
-  if(dgwData.length>0){
-    const nb = document.getElementById('dgw-badge');
-    nb.style.display='inline';
-    nb.textContent='GW'+dgwData[0].gw;
-  }
+// ── CONTEXT MENU ──
+function showCtx(e, name, section){
+  e.preventDefault();
+  ctxTarget  = name;
+  ctxSection = section;
+  const menu = document.getElementById('player-ctx-menu');
+  menu.style.display = 'block';
+  menu.style.left    = Math.min(e.clientX, window.innerWidth-170)+'px';
+  menu.style.top     = Math.min(e.clientY, window.innerHeight-220)+'px';
+  // Show/hide move options based on section
+  document.querySelector('.ctx-item[onclick="ctxMoveToXI()"]').style.display   = section==='bench'?'flex':'none';
+  document.querySelector('.ctx-item[onclick="ctxMoveToBench()"]').style.display = section==='xi'?'flex':'none';
+}
+document.addEventListener('click', ()=>{ document.getElementById('player-ctx-menu').style.display='none'; });
+
+function ctxSetCaptain(){ if(ctxTarget){ myCaptain=ctxTarget; renderMySquad(); } }
+function ctxSetVC(){ if(ctxTarget){ myVC=ctxTarget; renderMySquad(); } }
+function ctxMoveToXI(){
+  if(!ctxTarget) return;
+  const p = myBench.find(x=>x.name===ctxTarget);
+  if(!p) return;
+  if(myXI.length>=11){ alert('XI is full'); return; }
+  myBench = myBench.filter(x=>x.name!==ctxTarget);
+  myXI.push(p);
+  renderMySquad();
+}
+function ctxMoveToBench(){
+  if(!ctxTarget) return;
+  const p = myXI.find(x=>x.name===ctxTarget);
+  if(!p) return;
+  if(myBench.length>=4){ alert('Bench is full'); return; }
+  myXI = myXI.filter(x=>x.name!==ctxTarget);
+  myBench.push(p);
+  if(myCaptain===ctxTarget) myCaptain=myXI[0]?.name||null;
+  if(myVC===ctxTarget) myVC=myXI[1]?.name||null;
+  renderMySquad();
+}
+function ctxRemove(){
+  if(!ctxTarget) return;
+  if(ctxSection==='xi') removeFromXI(ctxTarget);
+  else removeFromBench(ctxTarget);
+}
+function ctxDeepDive(){
+  if(!ctxTarget) return;
+  const p = [...myXI,...myBench].find(x=>x.name===ctxTarget);
+  if(p) openPlayer(p.id, p.name);
 }
 
-// ── CHIP ADVISOR ──
-const CHIP_INFO = {
-  bench_boost:   {icon:'💺',name:'Bench Boost'},
-  triple_captain:{icon:'3\ufe0f\u20e3',name:'Triple Captain'},
-  free_hit:      {icon:'🎯',name:'Free Hit'},
-  wildcard:      {icon:'🃏',name:'Wildcard'},
-};
-
-function renderChips(chipPlan){
-  if(!chipPlan) return;
-  document.getElementById('chip-empty').style.display='none';
-  document.getElementById('chip-content').style.display='block';
-  const recs = chipPlan.recommendations;
-
-  // Rec cards
-  document.getElementById('chip-recs-grid').innerHTML = Object.entries(CHIP_INFO).map(([key,info])=>{
-    const r = recs[key];
-    if(!r) return '';
-    const cls = r.score>=7?'excellent':r.score>=4?'good':'poor';
-    return `<div class="chip-rec-card">
-      <div class="chip-rec-icon">${info.icon}</div>
-      <div class="chip-rec-name">${info.name}</div>
-      <div class="chip-rec-gw">GW ${r.gw}</div>
-      <div class="chip-rec-reason">${r.reason}</div>
-      <div class="chip-rec-verdict ${cls}">${r.verdict}</div>
-    </div>`;
-  }).join('');
-
-  // Plan rows
-  const plan = chipPlan.plan||[];
-  document.getElementById('chip-plan-rows').innerHTML = plan.map(gw=>{
-    const chips = ['bench_boost','triple_captain','free_hit','wildcard'];
-    const scoreCols = chips.map(c=>{
-      const d   = gw[c];
-      const cls = d.score>=7?'excellent':d.score>=4?'good':'poor';
-      const isBest = gw.best_chip===c;
-      return `<div class="cp-score ${cls}">
-        <div class="cp-score-val">${d.score.toFixed(1)}</div>
-        <div class="cp-score-lbl">${CHIP_INFO[c].name.split(' ')[0]}${isBest?' \u2605':''}</div>
-      </div>`;
-    }).join('');
-    const best = gw.best_chip?`<span class="cp-best">${CHIP_INFO[gw.best_chip]?.icon} Recommended</span>`:'';
-    return `<div class="chip-plan-row">
-      <div class="cp-gw">GW${gw.gw}</div>
-      <div>${best}</div>
-      ${scoreCols}
-    </div>`;
-  }).join('');
-}
-
-// ── FIXTURE TICKER ──
-async function loadTicker(){
-  const btn = document.getElementById('ticker-btn');
-  btn.disabled=true;
-  document.getElementById('ticker-btn-txt').innerHTML='<span class="spin" style="width:12px;height:12px;border-top-color:#fff"></span> Loading';
+// ── SAVE MY SQUAD ──
+async function saveMySquad(){
+  if(myXI.length<11){ alert('Need 11 players in your XI first'); return; }
+  if(myBench.length<4){ alert('Need 4 bench players first'); return; }
+  const btn = document.getElementById('save-btn-txt');
+  btn.innerHTML='<span class="spin" style="width:12px;height:12px;border-top-color:#fff"></span> Saving...';
   try{
-    const res  = await fetch(`${API}/api/fixtures/ticker`);
+    const gw  = parseInt(document.getElementById('nav-gw').textContent.replace('GW','').trim()) || 1;
+    const res = await fetch(`${API}/api/save-squad`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        players:   [...myXI.map((p,i)=>({...p,slot:'xi'})),...myBench.map(p=>({...p,slot:'bench'}))],
+        gameweek:  gw,
+        formation: myFormation,
+        captain:   myCaptain,
+        vice_captain: myVC,
+        bank:      parseFloat(document.getElementById('bank-input').value)||0,
+      })
+    });
     const json = await res.json();
     if(!json.ok) throw new Error(json.error);
-    renderTicker(json.ticker,json.gw_range);
-    document.getElementById('ticker-empty').style.display='none';
-    document.getElementById('ticker-table-wrap').style.display='block';
-    document.getElementById('ticker-btn-txt').textContent='\u21bb Refresh';
+    const st = document.getElementById('save-status');
+    st.textContent = '\u2713 Squad saved! GW'+json.gameweek;
+    st.style.display='block';
+    setTimeout(()=>st.style.display='none',3000);
+    btn.textContent='\u2713 Saved';
+    setTimeout(()=>btn.textContent='\uD83D\uDCBE Save My Squad',2000);
   } catch(e){
-    document.getElementById('ticker-empty').textContent='Error: '+e.message;
+    alert('Save failed: '+e.message);
+    btn.textContent='\uD83D\uDCBE Save My Squad';
   }
-  btn.disabled=false;
 }
 
-function fdrCls(fdr){if(!fdr||fdr===0)return 'bgw';if(fdr<=2)return 'fdr-1';if(fdr===3)return 'fdr-3';if(fdr===4)return 'fdr-4';return 'fdr-5';}
-function avgFdrColor(avg){if(avg<=2.5)return 'var(--green)';if(avg<=3.2)return 'var(--amber)';if(avg<=3.8)return 'var(--orange)';return 'var(--red)';}
-
-function renderTicker(ticker,gwRange){
-  document.getElementById('ticker-head').innerHTML=`<tr>
-    <th style="text-align:left;padding-left:14px">Team</th>
-    ${gwRange.map(g=>`<th>GW${g}</th>`).join('')}
-    <th>Avg</th></tr>`;
-  document.getElementById('ticker-body').innerHTML = ticker.map(team=>{
-    const cells = team.gws.map(gw=>{
-      if(gw.type==='BGW'||gw.fixtures===0)
-        return `<td><span class="fix-cell bgw"><span>\u2014</span><span class="fix-tag">BGW</span></span></td>`;
-      const isDGW = gw.type==='DGW';
-      const fc    = fdrCls(gw.avg_fdr);
-      const disp  = gw.opponents.map((o,i)=>`${o}(${gw.is_home[i]?'H':'A'})`).join('<br>');
-      return `<td><span class="fix-cell ${fc} ${isDGW?'dgw':''}">
-        <span>${disp}</span>
-        <span class="fix-tag">${isDGW?'DGW':'FDR '+gw.avg_fdr}</span>
-      </span></td>`;
-    }).join('');
-    return `<tr>
-      <td>${team.team_short}<span style="font-size:9px;color:var(--muted);margin-left:4px">${team.team_name}</span></td>
-      ${cells}
-      <td><span class="avg-fdr" style="color:${avgFdrColor(team.avg_fdr_6gw)}">${team.avg_fdr_6gw}</span></td>
-    </tr>`;
-  }).join('');
-}
-
-// ── PRICE CHANGES ──
-function priceRowHTML(p,type){
-  const net    = p.net_transfers;
-  const netStr = (net>0?'+':'')+(net/1000).toFixed(0)+'k';
-  const arrow  = type==='riser'?'\u25b2':'\u25bc';
-  return `<div class="price-card ${type}" onclick="openPlayer(${p.id},'${p.name}')">
-    <div>
-      <div class="pc-name">${arrow} ${p.name}</div>
-      <div class="pc-meta">${p.team_short||p.team} \u00b7 ${p.pos} \u00b7 \u00a3${p.price}m</div>
-    </div>
-    <span class="pc-conf ${p.confidence}">${p.confidence}</span>
-    <span class="pc-net ${net>0?'pos':'neg'}">${netStr}</span>
-  </div>`;
-}
-
-function renderPricesInline(data){
-  if(!data) return;
-  if(data.risers) document.getElementById('risers-list').innerHTML=data.risers.map(p=>priceRowHTML({...p,team_short:p.team},'riser')).join('');
-  if(data.fallers) document.getElementById('fallers-list').innerHTML=data.fallers.map(p=>priceRowHTML({...p,team_short:p.team},'faller')).join('');
-  document.getElementById('prices-content').style.display='block';
-  document.getElementById('prices-empty').style.display='none';
-}
-
-async function loadPrices(){
-  const btn = document.getElementById('prices-btn');
-  btn.disabled=true;
-  document.getElementById('prices-btn-txt').innerHTML='<span class="spin" style="width:12px;height:12px;border-top-color:#fff"></span> Loading';
+// ── SYNC FROM FPL ──
+async function syncFromFPL(){
+  const btn = document.getElementById('sync-btn-txt');
+  btn.textContent='Syncing...';
   try{
-    const res  = await fetch(`${API}/api/price-changes`);
+    const res  = await fetch(`${API}/api/sync/all`);
     const json = await res.json();
     if(!json.ok) throw new Error(json.error);
-    document.getElementById('risers-list').innerHTML = json.risers.map(p=>priceRowHTML(p,'riser')).join('');
-    document.getElementById('fallers-list').innerHTML = json.fallers.map(p=>priceRowHTML(p,'faller')).join('');
-    document.getElementById('prices-content').style.display='block';
-    document.getElementById('prices-empty').style.display='none';
-    document.getElementById('prices-btn-txt').textContent='\u21bb Refresh';
+    btn.textContent='\u2713 Synced from FPL!';
+    setTimeout(()=>{btn.textContent='\u21bb Auto-sync from FPL (after GW finalises)';},3000);
+    // Load saved squad after sync
+    await loadSavedSquad();
   } catch(e){
-    document.getElementById('prices-empty').textContent='Error: '+e.message;
+    btn.textContent='Sync failed: '+e.message;
+    setTimeout(()=>{btn.textContent='\u21bb Auto-sync from FPL (after GW finalises)';},3000);
   }
-  btn.disabled=false;
 }
 
-// ── WILDCARD ──
-let wcFormation = '4-3-3';
-function setWCF(btn,f){
-  document.querySelectorAll('.wc-formation-row .f-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  wcFormation=f;
-}
-
-async function runWildcard(){
-  const btn = document.getElementById('wc-btn');
-  btn.disabled=true;
-  document.getElementById('wc-btn-txt').innerHTML='<span class="spin" style="width:12px;height:12px;border-top-color:#fff"></span> Optimising 6 GWs...';
-  document.getElementById('wc-error').style.display='none';
-  document.getElementById('wc-results').style.display='none';
+// ── LOAD SAVED SQUAD ──
+async function loadSavedSquad(){
   try{
-    const res  = await fetch(`${API}/api/wildcard/${wcFormation}`);
+    const res  = await fetch(`${API}/api/history/latest-squad`);
     const json = await res.json();
-    if(!json.ok) throw new Error(json.error);
-    renderWildcard(json);
-    document.getElementById('wc-btn-txt').textContent='\u21bb Regenerate';
-  } catch(e){
-    document.getElementById('wc-error').style.display='block';
-    document.getElementById('wc-error').textContent='Error: '+e.message;
-    document.getElementById('wc-btn-txt').textContent='Build Wildcard Squad';
-  }
-  btn.disabled=false;
+    if(!json.ok||!json.squad||!json.squad.xi) return;
+    const s = json.squad;
+    myXI    = s.xi    || [];
+    myBench = s.bench || [];
+    myCaptain = s.captain?.name || myXI[0]?.name || null;
+    myVC      = s.vice_captain?.name || myXI[1]?.name || null;
+    if(s.formation) myFormation = s.formation;
+    renderMySquad();
+  } catch(e){ console.warn('No saved squad:', e); }
 }
 
-function renderWildcard(json){
-  const {squad,briefing,gameweek} = json;
-  const {xi,bench,captain,vice_captain,total_value,bank,formation,dgw_players} = squad;
-  // Stats
-  document.getElementById('wc-stats-strip').innerHTML = `
-    <div class="stat-card"><div class="stat-label">Squad Value</div><div class="stat-val purple">\u00a3${total_value}m</div><div class="stat-sub">\u00a3${bank}m in bank</div></div>
-    <div class="stat-card"><div class="stat-label">Captain</div><div class="stat-val orange" style="font-size:16px;padding-top:3px">${captain.name}</div><div class="stat-sub">WC Score: ${captain.wc_score||'—'}</div></div>
-    <div class="stat-card"><div class="stat-label">DGW Players</div><div class="stat-val green">${dgw_players.length}</div><div class="stat-sub">in starting XI</div></div>
-    <div class="stat-card"><div class="stat-label">Horizon</div><div class="stat-val blue">6 GWs</div><div class="stat-sub">from GW${gameweek}</div></div>`;
-  // Squad list
-  const posOrder = {GK:0,DEF:1,MID:2,FWD:3};
-  const all = [...xi,...bench].sort((a,b)=>(b.wc_score||0)-(a.wc_score||0));
-  document.getElementById('wc-squad-list').innerHTML = all.map(p=>`
-    <div class="wc-player-row" onclick="openPlayer(${p.id},'${p.name}')">
-      <div class="wc-pos" style="${getShirtStyle(p.team,p.pos)}">${getInitials(p.name)}</div>
-      <div>
-        <div class="wc-name">${p.name}${p.gw_type==='DGW'?' <span style="color:var(--green);font-size:9px">2x</span>':''}</div>
-        <div class="wc-team">${p.team} \u00b7 \u00a3${p.price}m</div>
-      </div>
-      <div class="wc-score">${p.wc_score||0}</div>
-      <div class="wc-fdr" style="color:${avgFdrColor(p.fdr_avg3||3)}">${p.fdr_avg3||3}</div>
-    </div>`).join('');
-  document.getElementById('wc-briefing').innerHTML = briefing||'—';
-  document.getElementById('wc-results').style.display='block';
-}
-
-// ── TRANSFER PLANNER ──
-let allBootstrapPlayers = [];
-let pickedPlayers = [];
-let currentFT = 1;
-
-async function loadPlayers(){
-  if(allBootstrapPlayers.length) return;
-  const input = document.getElementById('player-search');
-  input.placeholder='Loading players...';
-  try{
-    const res  = await fetch(`${API}/api/players`);
-    const json = await res.json();
-    allBootstrapPlayers = json.players||[];
-    input.placeholder=`Search from ${allBootstrapPlayers.length} players...`;
-  } catch(e){
-    input.placeholder='Could not load players';
-  }
-}
-
-function searchPlayers(q){
-  const box = document.getElementById('search-results');
-  if(!q||q.length<2){box.style.display='none';return;}
-  if(!allBootstrapPlayers.length){box.style.display='none';return;}
-  const ql      = q.toLowerCase();
-  const picked  = new Set(pickedPlayers.map(p=>p.name));
-  const matches = allBootstrapPlayers.filter(p=>!picked.has(p.name)&&
-    (p.name.toLowerCase().includes(ql)||p.full_name.toLowerCase().includes(ql))).slice(0,8);
-  if(!matches.length){box.style.display='none';return;}
-  box.innerHTML = matches.map(p=>`
-    <div class="sr-item" onclick="addPlayer(${JSON.stringify(p).replace(/"/g,'&quot;')})">
-      <span>${p.name} <span style="color:var(--muted)">${p.team}</span></span>
-      <span class="sr-pos">${p.pos} \u00b7 \u00a3${p.price}m</span>
-    </div>`).join('');
-  box.style.display='block';
-}
-
-function addPlayer(p){
-  if(pickedPlayers.length>=15){alert('Squad full');return;}
-  if(pickedPlayers.find(x=>x.name===p.name)) return;
-  pickedPlayers.push(p);
-  renderPicked();
-  document.getElementById('player-search').value='';
-  document.getElementById('search-results').style.display='none';
-}
-
-function removePlayer(name){pickedPlayers=pickedPlayers.filter(p=>p.name!==name);renderPicked();}
-function clearPicks(){pickedPlayers=[];renderPicked();}
-
-function renderPicked(){
-  const cnt = document.getElementById('pick-count');
-  cnt.textContent = pickedPlayers.length;
-  const el = document.getElementById('picked-players');
-  if(!pickedPlayers.length){
-    el.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px">Search and add your 15 players above...</div>';
-    return;
-  }
-  const pos = {GK:0,DEF:1,MID:2,FWD:3};
-  const sorted = [...pickedPlayers].sort((a,b)=>pos[a.pos]-pos[b.pos]);
-  el.innerHTML = sorted.map(p=>`
-    <div class="picked-row">
-      <div>
-        <span class="picked-name">${p.name}</span>
-        <span class="picked-meta"> \u00b7 ${p.team} \u00b7 ${p.pos} \u00b7 \u00a3${p.price}m</span>
-      </div>
-      <span class="picked-rm" onclick="removePlayer('${p.name}')">✕</span>
-    </div>`).join('');
-  document.getElementById('squad-input').value = pickedPlayers.map(p=>p.name).join('\n');
-}
-
+// ── FT & TRANSFER PLANNER ──
 function setFT(btn,n){
   document.querySelectorAll('.ft-pill').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
@@ -1625,23 +1093,16 @@ function setFT(btn,n){
 }
 
 async function runTransfers(){
-  const btn = document.getElementById('tp-run-btn');
-  btn.disabled=true;
-  document.getElementById('tp-btn-txt').innerHTML='<span class="spin" style="width:12px;height:12px;border-top-color:#fff"></span> Analysing...';
+  if(myXI.length<11){ alert('Save your squad first'); return; }
+  const btn = document.getElementById('tp-btn-txt');
+  btn.innerHTML='<span class="spin" style="width:12px;height:12px;border-top-color:var(--text)"></span> Analysing...';
   document.getElementById('tp-error').style.display='none';
-  const raw = document.getElementById('squad-input').value.trim();
-  if(!raw){
-    document.getElementById('tp-error').style.display='block';
-    document.getElementById('tp-error').textContent='Add your squad players first.';
-    btn.disabled=false;
-    document.getElementById('tp-btn-txt').textContent='Find best transfers';
-    return;
-  }
+  const squadStr = [...myXI,...myBench].map(p=>p.name).join('\n');
   try{
     const res = await fetch(`${API}/api/transfers`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({squad:raw,free_transfers:currentFT,bank:parseFloat(document.getElementById('bank-input').value)||0})
+      body:JSON.stringify({squad:squadStr,free_transfers:currentFT,bank:parseFloat(document.getElementById('bank-input').value)||0})
     });
     const json = await res.json();
     if(!json.ok) throw new Error(json.error);
@@ -1650,280 +1111,386 @@ async function runTransfers(){
     document.getElementById('tp-error').style.display='block';
     document.getElementById('tp-error').textContent='Error: '+e.message;
   }
-  btn.disabled=false;
-  document.getElementById('tp-btn-txt').textContent='Find best transfers';
+  btn.textContent='Find best transfers \u2192';
 }
 
 function renderTransfers(json){
   const transfers = json.transfers||[];
   document.getElementById('transfer-list').innerHTML = transfers.slice(0,10).map((t,i)=>{
-    const out_name  = t.out_name || (t.out && t.out.name) || '?';
-    const in_name   = t.in_name  || (t.in  && t.in.name)  || '?';
-    const in_price  = t.in_price || (t.in  && t.in.price) || '?';
-    const in_pos    = t.in_pos   || (t.in  && t.in.pos)   || '?';
-    const in_xpts   = t.in_xpts  || (t.in  && t.in.xpts)  || '?';
-    const gain      = t.xpts_gain || t.net_gain || 0;
-    const is_hit    = t.hit_required || t.is_hit || false;
-    return `<div class="transfer-card">
-      <div class="tc-rank">${i+1}</div>
-      <div>
-        <div class="tc-arrow out">\u2193</div>
-        <div style="font-size:10px;color:var(--muted)">${out_name}</div>
+    const out_name = t.out_name||(t.out&&t.out.name)||'?';
+    const in_name  = t.in_name ||(t.in &&t.in.name) ||'?';
+    const in_price = t.in_price||(t.in &&t.in.price)||'?';
+    const in_pos   = t.in_pos  ||(t.in &&t.in.pos)  ||'?';
+    const in_xpts  = t.in_xpts ||(t.in &&t.in.xpts) ||'?';
+    const gain     = t.xpts_gain||t.net_gain||0;
+    const is_hit   = t.hit_required||t.is_hit||false;
+    return `<div class="transfer-row">
+      <div class="tr-rank">${i+1}</div>
+      <div class="tr-arrow tr-out">\u2193</div>
+      <div class="tr-info">
+        <div class="tr-name">${out_name} \u2192 ${in_name}</div>
+        <div class="tr-meta">\u00a3${in_price}m · ${in_pos} · xPts ${in_xpts}</div>
       </div>
-      <div>
-        <div class="tc-arrow in">\u2191</div>
-        <div style="font-size:10px;color:var(--muted)">${in_name}</div>
-      </div>
-      <div class="tc-info">
-        <div class="tc-name">${in_name} IN</div>
-        <div class="tc-meta">\u00a3${in_price}m \u00b7 ${in_pos} \u00b7 xPts ${in_xpts}</div>
-      </div>
-      <div class="tc-gain">+${parseFloat(gain).toFixed(1)}</div>
-      <span class="tc-hit-badge ${is_hit?'hit':'free'}">${is_hit?'-4 hit':'Free'}</span>
+      <div class="tr-gain">+${parseFloat(gain).toFixed(1)}</div>
+      <span class="tr-hit ${is_hit?'hit':'free'}">${is_hit?'-4':'Free'}</span>
     </div>`;
   }).join('');
   if(json.briefing){
     document.getElementById('tp-briefing-text').textContent=json.briefing;
     document.getElementById('tp-briefing').style.display='block';
   }
-  document.getElementById('tp-results').style.display='block';
+  document.getElementById('transfer-results').style.display='block';
 }
 
-// ── PLAYER DEEP-DIVE MODAL ──
-function closeModal(e){if(e.target.id==='player-modal')document.getElementById('player-modal').style.display='none';}
+// ── AI SQUAD ──
+let aiFormation = '4-3-3';
+function setAIFormation(btn,f){
+  document.querySelectorAll('#tab-aisquad .btn-secondary').forEach(b=>b.style.borderColor='');
+  btn.style.borderColor='var(--purple-l)';
+  aiFormation=f;
+}
 
+async function runAISquad(){
+  document.getElementById('gen-spin').style.display='inline-block';
+  document.getElementById('gen-txt').textContent='Building...';
+  document.getElementById('ai-gen-spin').style.display='inline-block';
+  document.getElementById('ai-gen-txt').textContent='Building...';
+  document.getElementById('gen-loading').style.display='flex';
+  document.getElementById('gen-error').style.display='none';
+  document.getElementById('ai-squad-content').style.display='none';
+  showTab('aisquad', document.getElementById('nav-aisquad'));
+  try{
+    const res  = await fetch(`${API}/api/squad/${aiFormation}`);
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error||'Unknown error');
+    aiSquadData = json.data;
+    renderAISquad(json.data);
+    if(json.data.dgw_bgw)   renderDGW(json.data.dgw_bgw);
+    if(json.data.chip_plan) renderChips(json.data.chip_plan);
+    if(json.data.price_changes) renderPricesInline(json.data.price_changes);
+    document.getElementById('gen-txt').textContent='Regenerate';
+    document.getElementById('ai-gen-txt').textContent='Regenerate';
+    document.getElementById('ai-gw-badge').textContent='GW'+json.data.gameweek;
+  } catch(e){
+    document.getElementById('gen-error').style.display='block';
+    document.getElementById('gen-error').textContent='Error: '+e.message;
+    document.getElementById('gen-txt').textContent='AI Squad Picker';
+    document.getElementById('ai-gen-txt').textContent='Generate';
+  }
+  document.getElementById('gen-spin').style.display='none';
+  document.getElementById('ai-gen-spin').style.display='none';
+  document.getElementById('gen-loading').style.display='none';
+}
+
+function renderAISquad(data){
+  const squad = data.squad;
+  const gw    = data.gameweek;
+  const dl    = data.deadline;
+  const xi    = squad.xi||[];
+  const bench = squad.bench||[];
+  const cap   = squad.captain||{};
+  const vc    = squad.vice_captain||{};
+
+  // Nav
+  document.getElementById('nav-gw').textContent = 'GW'+gw;
+  document.getElementById('ai-squad-sub').textContent = `What the AI would pick for GW${gw}`;
+  if(dl){
+    const d=new Date(dl);
+    document.getElementById('nav-deadline').textContent='Deadline: '+d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  // Stats
+  const avgXpts = xi.length?(xi.reduce((a,p)=>a+p.xpts,0)/xi.length).toFixed(1):'—';
+  const avgFdr  = xi.length?(xi.reduce((a,p)=>a+(p.fdr_avg3||3),0)/xi.length).toFixed(1):'—';
+  const dgwCnt  = xi.filter(p=>p.gw_type==='DGW').length;
+  document.getElementById('ai-stats-strip').innerHTML = `
+    <div class="stat-card"><div class="stat-lbl">Squad Value</div><div class="stat-val purple">\u00a3${squad.total_value}m</div><div class="stat-sub">\u00a3${squad.bank}m in bank</div></div>
+    <div class="stat-card"><div class="stat-lbl">Avg xPts/GW</div><div class="stat-val">${avgXpts}</div><div class="stat-sub">starting XI</div></div>
+    <div class="stat-card"><div class="stat-lbl">Captain</div><div class="stat-val orange" style="font-size:16px;padding-top:3px">${cap.name||'—'}</div><div class="stat-sub">${cap.team||''} · xPts ${cap.xpts||'—'}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Avg FDR</div><div class="stat-val blue">${avgFdr}</div><div class="stat-sub">next 3 GWs</div></div>`;
+
+  // Injuries
+  const doubts = xi.concat(bench).filter(p=>p.is_doubtful||(p.chance!=null&&p.chance<100));
+  document.getElementById('ai-injury-alerts').innerHTML = doubts.map(p=>`
+    <div class="injury-alert">
+      <div class="i-dot ${p.chance>=75?'amber':''}"></div>
+      <span><strong style="color:#fca5a5">${p.name} ${p.chance!=null?p.chance+'%':''}</strong>${p.news?' \u2014 '+p.news:''}</span>
+    </div>`).join('');
+
+  // Right panel
+  document.getElementById('briefing-content').innerHTML=`<div class="briefing-text">${data.briefing||'—'}</div>`;
+  const avgForm = xi.length?(xi.reduce((a,p)=>a+(parseFloat(p.form)||0),0)/xi.length).toFixed(1):'—';
+  const avgCons = xi.length?(xi.reduce((a,p)=>a+(p.consistency||5),0)/xi.length).toFixed(1):'—';
+  document.getElementById('r-form').textContent=avgForm;
+  document.getElementById('r-cons').textContent=avgCons+'/10';
+  document.getElementById('r-fdr').textContent=avgFdr;
+  document.getElementById('r-dgw').textContent=dgwCnt;
+  document.getElementById('rp-stats').style.display='block';
+
+  const momC=m=>m>0.5?'up':m<-0.5?'dn':'fl';
+  const momS=m=>(m>0?'+':'')+parseFloat(m).toFixed(1);
+  const top=(data.top_players||[]).slice(0,8);
+  document.getElementById('top-players-list').innerHTML = top.map((p,i)=>`
+    <div class="rank-row" onclick="openPlayer(${p.id},'${p.name}')">
+      <div class="rank-num">${i+1}</div>
+      <div class="pos-dot" style="background:${POS_COLORS[p.pos]||'#333'}">${initials(p.name)}</div>
+      <div class="rank-info"><div class="rank-name">${p.name}</div><div class="rank-meta">${p.team} · \u00a3${p.price}m · ${p.form} form</div></div>
+      <div class="rank-xpts">${p.xpts}</div>
+      <div class="rank-mom ${momC(p.momentum||0)}">${momS(p.momentum||0)}</div>
+    </div>`).join('');
+  document.getElementById('rp-top').style.display='block';
+  document.getElementById('ai-pitch-label').textContent=squad.formation+' · GW'+gw;
+
+  // Pitch
+  const gkP=xi.filter(p=>p.pos==='GK'),defP=xi.filter(p=>p.pos==='DEF'),midP=xi.filter(p=>p.pos==='MID'),fwdP=xi.filter(p=>p.pos==='FWD');
+  function aiChip(p,sm=false){
+    const isCap=p.id===cap.id,isVC=p.id===vc.id,isDGW=p.gw_type==='DGW';
+    const sz=sm?'width:36px;height:36px;font-size:9px':'width:44px;height:44px;font-size:11px';
+    return `<div class="pchip" onclick="openPlayer(${p.id},'${p.name}')">
+      <div class="pshirt" style="${shirtStyle(p.team,p.pos)};${sz};border-radius:10px;position:relative">
+        ${isDGW?'<span class="dgw-tag">2x</span>':''}
+        ${isCap?'<span class="cap-badge">C</span>':''}
+        ${isVC&&!isCap?'<span class="vc-badge">V</span>':''}
+        ${initials(p.name)}
+      </div>
+      <div class="pname">${p.name}</div>
+      <div class="pprice">\u00a3${p.price}m</div>
+    </div>`;
+  }
+  const row=ps=>`<div class="p-row">${ps.map(p=>aiChip(p)).join('')}</div>`;
+  document.getElementById('ai-pitch-surface').innerHTML=row(gkP)+row(defP)+row(midP)+row(fwdP);
+  document.getElementById('ai-bench-row').innerHTML=bench.map(p=>aiChip(p,true)).join('');
+  document.getElementById('ai-squad-content').style.display='flex';
+}
+
+// ── DGW ──
+function renderDGW(data){
+  const list=document.getElementById('dgw-list'),empty=document.getElementById('dgw-empty');
+  if(!data||!data.length){empty.style.display='block';empty.textContent='No DGW/BGW detected in next 10 GWs.';return;}
+  empty.style.display='none';
+  list.innerHTML=data.map(gw=>{
+    const hasDGW=gw.dgw&&gw.dgw.length>0,hasBGW=gw.bgw&&gw.bgw.length>0;
+    const cls=hasDGW&&hasBGW?'has-dgw has-bgw':hasDGW?'has-dgw':'has-bgw';
+    const dgwH=hasDGW?`<div><span class="dgw-badge dgw">2x DOUBLE \u2014 ${gw.dgw.length} team${gw.dgw.length>1?'s':''}</span><div class="dgw-teams">${gw.dgw.map(t=>`<div class="dgw-team"><div class="dgw-team-name">${t.team}</div><div class="dgw-team-opp">vs ${t.opponents.join('+')} FDR ${t.fdr.join('/')}</div></div>`).join('')}</div></div>`:'';
+    const bgwH=hasBGW?`<div style="margin-top:${hasDGW?'12px':'0'}"><span class="dgw-badge bgw">BLANK \u2014 ${gw.bgw.length} team${gw.bgw.length>1?'s':''}</span><div class="dgw-teams">${gw.bgw.map(t=>`<div class="dgw-team" style="border-color:rgba(239,68,68,0.2)"><div class="dgw-team-name" style="color:var(--red)">${t.team}</div><div class="dgw-team-opp">No fixture</div></div>`).join('')}</div></div>`:'';
+    return `<div class="dgw-card ${cls}"><div class="dgw-gw">GW ${gw.gw}</div>${dgwH}${bgwH}</div>`;
+  }).join('');
+  if(data.length>0){const nb=document.getElementById('dgw-badge');nb.classList.remove('hidden');nb.textContent='GW'+data[0].gw;}
+}
+
+// ── CHIP ADVISOR ──
+const CHIP_INFO={'bench_boost':{icon:'\uD83D\uDECF\uFE0F',name:'Bench Boost'},'triple_captain':{icon:'3\uFE0F\u20E3',name:'Triple Captain'},'free_hit':{icon:'\uD83C\uDFAF',name:'Free Hit'},'wildcard':{icon:'\uD83C\uDCCF',name:'Wildcard'}};
+
+function renderChips(chipPlan){
+  if(!chipPlan) return;
+  document.getElementById('chip-empty').style.display='none';
+  document.getElementById('chip-content').style.display='block';
+  const recs=chipPlan.recommendations;
+
+  // Check for strong chip recommendation to show in banner + sidebar
+  const bestChips = Object.entries(recs).filter(([k,r])=>r.score>=7).sort((a,b)=>b[1].score-a[1].score);
+  if(bestChips.length>0){
+    const [key,rec] = bestChips[0];
+    const info = CHIP_INFO[key];
+    // Banner
+    const banner = document.getElementById('chip-banner');
+    document.getElementById('chip-banner-icon').textContent = info.icon;
+    document.getElementById('chip-banner-title').textContent = `Play ${info.name} in GW${rec.gw}`;
+    document.getElementById('chip-banner-desc').textContent = rec.reason;
+    document.getElementById('chip-banner-score').textContent = rec.score.toFixed(1);
+    banner.style.display='block';
+    // Sidebar
+    const card = document.getElementById('chip-alert-card');
+    document.getElementById('chip-alert-title').textContent = `${info.icon} ${info.name} — GW${rec.gw}`;
+    document.getElementById('chip-alert-text').textContent = rec.reason;
+    card.style.display='block';
+  }
+
+  document.getElementById('chip-recs-grid').innerHTML=Object.entries(CHIP_INFO).map(([key,info])=>{
+    const r=recs[key]; if(!r) return '';
+    const cls=r.score>=7?'excellent':r.score>=4?'good':'poor';
+    return `<div class="chip-rec"><div class="chip-rec-icon">${info.icon}</div><div class="chip-rec-name">${info.name}</div><div class="chip-rec-gw">GW ${r.gw}</div><div class="chip-rec-reason">${r.reason}</div><div class="chip-rec-verdict ${cls}">${r.verdict}</div></div>`;
+  }).join('');
+
+  const plan=chipPlan.plan||[];
+  document.getElementById('chip-plan-rows').innerHTML=plan.map(gw=>{
+    const chips=['bench_boost','triple_captain','free_hit','wildcard'];
+    const cols=chips.map(c=>{
+      const d=gw[c],cls=d.score>=7?'excellent':d.score>=4?'good':'poor';
+      const isBest=gw.best_chip===c;
+      return `<div style="text-align:center;min-width:60px"><div style="font-size:14px;font-weight:800;font-family:var(--display);color:${cls==='excellent'?'var(--green)':cls==='good'?'var(--amber)':'var(--muted)'}">${d.score.toFixed(1)}</div><div style="font-size:8px;color:var(--muted)">${CHIP_INFO[c].name.split(' ')[0]}${isBest?' \u2605':''}</div></div>`;
+    }).join('');
+    const best=gw.best_chip?`<span style="font-size:10px;color:var(--purple-l);font-weight:600">${CHIP_INFO[gw.best_chip]?.icon} Rec</span>`:'';
+    return `<div style="display:grid;grid-template-columns:48px 80px repeat(4,1fr);align-items:center;gap:8px;padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px"><div style="font-family:var(--display);font-size:16px;font-weight:700">GW${gw.gw}</div><div>${best}</div>${cols}</div>`;
+  }).join('');
+}
+
+// ── FIXTURE TICKER ──
+async function loadTicker(){
+  const btn=document.getElementById('ticker-btn');btn.disabled=true;
+  document.getElementById('ticker-btn-txt').innerHTML='<span class="spin" style="width:12px;height:12px;border-top-color:#fff"></span>';
+  try{
+    const res=await fetch(`${API}/api/fixtures/ticker`);
+    const json=await res.json();
+    if(!json.ok) throw new Error(json.error);
+    const fdrCls=fdr=>!fdr||fdr===0?'bgw':fdr<=2?'fdr-1':fdr===3?'fdr-3':fdr===4?'fdr-4':'fdr-5';
+    const avgColor=avg=>avg<=2.5?'var(--green)':avg<=3.2?'var(--amber)':avg<=3.8?'var(--orange)':'var(--red)';
+    document.getElementById('ticker-head').innerHTML=`<tr><th style="text-align:left;padding-left:14px">Team</th>${json.gw_range.map(g=>`<th>GW${g}</th>`).join('')}<th>Avg</th></tr>`;
+    document.getElementById('ticker-body').innerHTML=json.ticker.map(team=>{
+      const cells=team.gws.map(gw=>{
+        if(gw.type==='BGW'||gw.fixtures===0) return `<td><span class="fix-cell bgw"><span>\u2014</span><span class="fix-tag">BGW</span></span></td>`;
+        const isDGW=gw.type==='DGW',fc=fdrCls(gw.avg_fdr);
+        const disp=gw.opponents.map((o,i)=>`${o}(${gw.is_home[i]?'H':'A'})`).join('<br>');
+        return `<td><span class="fix-cell ${fc} ${isDGW?'dgw':''}"><span>${disp}</span><span class="fix-tag">${isDGW?'DGW':'FDR '+gw.avg_fdr}</span></span></td>`;
+      }).join('');
+      return `<tr><td>${team.team_short}<span style="font-size:9px;color:var(--muted);margin-left:4px">${team.team_name}</span></td>${cells}<td><span class="avg-fdr" style="color:${avgColor(team.avg_fdr_6gw)}">${team.avg_fdr_6gw}</span></td></tr>`;
+    }).join('');
+    document.getElementById('ticker-empty').style.display='none';
+    document.getElementById('ticker-wrap').style.display='block';
+    document.getElementById('ticker-btn-txt').textContent='\u21bb Refresh';
+  } catch(e){document.getElementById('ticker-empty').textContent='Error: '+e.message;}
+  btn.disabled=false;
+}
+
+// ── PRICE CHANGES ──
+function priceRow(p,type){
+  const net=p.net_transfers,ns=(net>0?'+':'')+(net/1000).toFixed(0)+'k',arr=type==='riser'?'\u25b2':'\u25bc';
+  return `<div class="price-card ${type}" onclick="openPlayer(${p.id},'${p.name}')">
+    <div><div class="pc-name">${arr} ${p.name}</div><div class="pc-meta">${p.team_short||p.team} · ${p.pos} · \u00a3${p.price}m</div></div>
+    <span class="pc-conf ${p.confidence}">${p.confidence}</span>
+    <span class="pc-net ${net>0?'pos':'neg'}">${ns}</span>
+  </div>`;
+}
+function renderPricesInline(data){
+  if(!data) return;
+  if(data.risers) document.getElementById('risers-list').innerHTML=data.risers.map(p=>priceRow({...p,team_short:p.team},'riser')).join('');
+  if(data.fallers) document.getElementById('fallers-list').innerHTML=data.fallers.map(p=>priceRow({...p,team_short:p.team},'faller')).join('');
+  document.getElementById('prices-content').style.display='block';
+  document.getElementById('prices-empty').style.display='none';
+}
+async function loadPrices(){
+  const btn=document.getElementById('prices-btn');btn.disabled=true;
+  document.getElementById('prices-btn-txt').innerHTML='<span class="spin" style="width:12px;height:12px;border-top-color:#fff"></span>';
+  try{
+    const res=await fetch(`${API}/api/price-changes`);
+    const json=await res.json();
+    if(!json.ok) throw new Error(json.error);
+    document.getElementById('risers-list').innerHTML=json.risers.map(p=>priceRow(p,'riser')).join('');
+    document.getElementById('fallers-list').innerHTML=json.fallers.map(p=>priceRow(p,'faller')).join('');
+    document.getElementById('prices-content').style.display='block';
+    document.getElementById('prices-empty').style.display='none';
+    document.getElementById('prices-btn-txt').textContent='\u21bb Refresh';
+  } catch(e){document.getElementById('prices-empty').textContent='Error: '+e.message;}
+  btn.disabled=false;
+}
+
+// ── DAILY BRIEFING ──
+async function loadDailyBriefing(){
+  const modal=document.getElementById('brief-modal');
+  modal.style.display='block';
+  document.getElementById('brief-loading').style.display='block';
+  document.getElementById('brief-body-content').style.display='none';
+  try{
+    const res=await fetch(`${API}/api/daily-briefing`);
+    const json=await res.json();
+    if(!json.ok) throw new Error(json.error);
+    document.getElementById('brief-gw').textContent='GW'+json.gameweek+' · '+new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+    document.getElementById('brief-deadline').textContent='Deadline in '+json.deadline;
+    document.getElementById('brief-injuries').innerHTML=(json.injuries||[]).map(i=>`
+      <div class="brief-inj-row">
+        <div class="i-dot ${i.chance>=75?'amber':''}"></div>
+        <span><strong style="color:#fca5a5">${i.name} ${i.chance!=null?i.chance+'%':''}</strong>${i.news?' \u2014 '+i.news:''}</span>
+      </div>`).join('');
+    document.getElementById('brief-text').textContent=json.briefing;
+    document.getElementById('brief-loading').style.display='none';
+    document.getElementById('brief-body-content').style.display='block';
+  } catch(e){
+    document.getElementById('brief-loading').textContent='Error: '+e.message;
+  }
+}
+
+// ── PLAYER DEEP-DIVE ──
 async function openPlayer(id,name){
-  const modal = document.getElementById('player-modal');
+  const modal=document.getElementById('player-modal');
   modal.style.display='block';
   document.getElementById('modal-loading').style.display='block';
   document.getElementById('modal-body').style.display='none';
   document.getElementById('modal-name').textContent=name||'Loading...';
   document.getElementById('modal-meta').textContent='Fetching data...';
   try{
-    const res  = await fetch(`${API}/api/player/${id}`);
-    const json = await res.json();
+    const res=await fetch(`${API}/api/player/${id}`);
+    const json=await res.json();
     if(!json.ok) throw new Error(json.error);
     renderModal(json.player,json.verdict);
   } catch(e){
     document.getElementById('modal-loading').textContent='Error: '+e.message;
   }
 }
-
 function renderModal(p,verdict){
   document.getElementById('modal-name').textContent=p.full_name||p.name;
-  document.getElementById('modal-meta').textContent=`${p.team} \u00b7 ${p.pos} \u00b7 \u00a3${p.price}m \u00b7 ${p.selected_pct}% owned \u00b7 ${p.status.toUpperCase()}${p.news?' \u2014 '+p.news:''}`;
-  const lines  = verdict.trim().split('\n');
-  const label  = lines[0].trim().toUpperCase();
-  const reason = lines.slice(1).join('\n').trim();
-  const vbox   = document.getElementById('verdict-box');
+  document.getElementById('modal-meta').textContent=`${p.team} · ${p.pos} · \u00a3${p.price}m · ${p.selected_pct}% owned · ${p.status.toUpperCase()}${p.news?' \u2014 '+p.news:''}`;
+  const lines=verdict.trim().split('\n'),label=lines[0].trim().toUpperCase(),reason=lines.slice(1).join('\n').trim();
+  const vbox=document.getElementById('verdict-box');
   vbox.className='verdict-box '+(label==='BUY'?'buy':label==='SELL'?'sell':'hold');
-  const vl = document.getElementById('verdict-label');
-  vl.textContent=label;
-  vl.className='verdict-label '+(label==='BUY'?'buy':label==='SELL'?'sell':'hold');
+  const vl=document.getElementById('verdict-lbl');
+  vl.textContent=label;vl.className='verdict-lbl '+(label==='BUY'?'buy':label==='SELL'?'sell':'hold');
   document.getElementById('verdict-body').textContent=reason;
-  // Stats grid
-  const stats=[
-    {l:'Price',v:'\u00a3'+p.price+'m'},{l:'Form',v:p.form},{l:'PPG',v:p.ppg},{l:'Ownership',v:p.selected_pct+'%'},
-    {l:'xGI',v:p.xgi},{l:'Consistency',v:p.consistency+'/10'},{l:'Blank Rate',v:p.blank_rate+'%'},{l:'Pts/\u00a3m',v:p.value_pts_per_m}
-  ];
-  document.getElementById('modal-stats-grid').innerHTML=stats.map(s=>`
-    <div class="stat-card"><div class="stat-label">${s.l}</div><div class="stat-val" style="font-size:18px">${s.v}</div></div>`).join('');
-  // GW bars
-  const hist = p.gw_history||[];
-  document.getElementById('modal-gw-bars').innerHTML=hist.map(h=>{
-    const pct = Math.min(100,(h.pts/20)*100);
-    const col = h.pts>=9?'var(--green)':h.pts>=6?'var(--amber)':h.pts>=3?'#60a5fa':'var(--red)';
-    return `<div class="gw-bar-row">
-      <span class="gw-bar-label">${h.gw}</span>
-      <span style="font-size:9px;color:var(--muted);width:28px">${h.home?'H':'A'} ${h.opp}</span>
-      <div class="gw-bar-bg"><div class="gw-bar-fill" style="width:${pct}%;background:${col}"></div></div>
-      <span class="gw-bar-val">${h.pts}</span>
-    </div>`;
+  const stats=[{l:'Price',v:'\u00a3'+p.price+'m'},{l:'Form',v:p.form},{l:'PPG',v:p.ppg},{l:'Ownership',v:p.selected_pct+'%'},{l:'xGI',v:p.xgi},{l:'Consistency',v:p.consistency+'/10'},{l:'Blank Rate',v:p.blank_rate+'%'},{l:'Pts/\u00a3m',v:p.value_pts_per_m}];
+  document.getElementById('modal-stats').innerHTML=stats.map(s=>`<div class="stat-card"><div class="stat-lbl">${s.l}</div><div class="stat-val" style="font-size:18px">${s.v}</div></div>`).join('');
+  const fdrColor=fdr=>fdr<=2?'var(--green)':fdr===3?'var(--amber)':fdr===4?'var(--orange)':'var(--red)';
+  document.getElementById('modal-bars').innerHTML=(p.gw_history||[]).map(h=>{
+    const pct=Math.min(100,(h.pts/20)*100),col=h.pts>=9?'var(--green)':h.pts>=6?'var(--amber)':h.pts>=3?'#60a5fa':'var(--red)';
+    return `<div class="gw-bar-row"><span style="color:var(--muted);width:28px;font-family:var(--display)">${h.gw}</span><span style="font-size:9px;color:var(--muted);width:28px">${h.home?'H':'A'} ${h.opp}</span><div class="gw-bar-bg"><div class="gw-bar-fill" style="width:${pct}%;background:${col}"></div></div><span style="width:18px;text-align:right;font-weight:700">${h.pts}</span></div>`;
   }).join('');
   document.getElementById('m-home').textContent=p.home_avg+' pts';
   document.getElementById('m-away').textContent=p.away_avg+' pts';
-  // Fixtures
-  const fdrColor = fdr=>fdr<=2?'var(--green)':fdr===3?'var(--amber)':fdr===4?'var(--orange)':'var(--red)';
   document.getElementById('modal-fixtures').innerHTML=(p.next6||[]).map(f=>`
-    <div class="fix-row">
-      <span class="fix-gw">GW${f.gw}</span>
-      <span class="fix-opp" style="color:${f.type==='BGW'?'var(--muted)':'#fff'}">${f.display||'\u2014'}${f.type==='DGW'?' \ud83d\udd25':''}${f.type==='BGW'?' (Blank)':''}</span>
-      ${f.fdr.length?`<span class="fix-fdr-pill" style="background:${fdrColor(f.fdr[0])}22;color:${fdrColor(f.fdr[0])}">${f.fdr[0]}</span>`:''}
-    </div>`).join('');
-  document.getElementById('m-avg-fdr').textContent=p.avg_fdr_6gw;
-  // Transfer trend
-  const tc = p.net_transfers>=0?'var(--green)':'var(--red)';
+    <div class="fix-row"><span style="color:var(--muted);width:32px;font-family:var(--display)">GW${f.gw}</span>
+    <span style="flex:1;font-weight:600;color:${f.type==='BGW'?'var(--muted)':'#fff'}">${f.display||'\u2014'}${f.type==='DGW'?' \uD83D\uDD25':f.type==='BGW'?' (Blank)':''}</span>
+    ${f.fdr.length?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:${fdrColor(f.fdr[0])}22;color:${fdrColor(f.fdr[0])}">${f.fdr[0]}</span>`:''}</div>`).join('');
+  document.getElementById('m-fdr').textContent=p.avg_fdr_6gw;
+  const tc=p.net_transfers>=0?'var(--green)':'var(--red)';
   document.getElementById('m-trend').style.color=tc;
   document.getElementById('m-trend').textContent=p.transfer_trend;
   document.getElementById('m-net').textContent=(p.net_transfers>=0?'+':'')+(p.net_transfers/1000).toFixed(0)+'k net transfers this GW';
   document.getElementById('m-setpieces').textContent=p.set_pieces.length?p.set_pieces.join(', '):'No set piece duties';
-  // Alternatives
-  const altEl = document.getElementById('m-alternatives');
-  if(p.alternatives&&p.alternatives.length){
-    altEl.innerHTML=p.alternatives.map(a=>`
-      <div class="alt-row">
-        <div><span class="alt-name">${a.name}</span><span class="alt-team">${a.team}</span></div>
-        <div class="alt-right"><div class="alt-price">\u00a3${a.price}m</div><div class="alt-form">${a.form} form</div></div>
-      </div>`).join('');
-  } else {
-    altEl.innerHTML='<div style="font-size:11px;color:var(--muted)">No better-value alternatives found</div>';
-  }
+  const altEl=document.getElementById('m-alts');
+  altEl.innerHTML=p.alternatives&&p.alternatives.length?p.alternatives.map(a=>`<div class="alt-row"><div><span style="font-weight:600">${a.name}</span><span style="color:var(--muted);font-size:9px;margin-left:4px">${a.team}</span></div><div style="text-align:right"><div style="color:var(--green);font-weight:700">\u00a3${a.price}m</div><div style="color:var(--muted);font-size:9px">${a.form} form</div></div></div>`).join(''):'<div style="font-size:11px;color:var(--muted)">No better-value alternatives found</div>';
   document.getElementById('modal-loading').style.display='none';
   document.getElementById('modal-body').style.display='block';
 }
 
-// ── CLOSE SEARCH DROPDOWN ──
+// ── CLOSE SEARCH ON OUTSIDE CLICK ──
 document.addEventListener('click',e=>{
-  if(!e.target.closest('#player-search')&&!e.target.closest('#search-results'))
-    document.getElementById('search-results').style.display='none';
+  if(!e.target.closest('#xi-search')&&!e.target.closest('#xi-results')) document.getElementById('xi-results').style.display='none';
+  if(!e.target.closest('#bench-search')&&!e.target.closest('#bench-results')) document.getElementById('bench-results').style.display='none';
 });
-
-// ── SAVE MY SQUAD ──
-async function saveMySquad(){
-  if(pickedPlayers.length < 11){
-    alert('Add at least 11 players first');
-    return;
-  }
-  try{
-    const boot = await fetch(`${API}/api/players`).then(r=>r.json());
-    const gw   = parseInt(document.getElementById('nav-gw').textContent.replace('GW','').trim()) || 1;
-    const res  = await fetch(`${API}/api/save-squad`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        players:   pickedPlayers.map((p,i)=>({name:p.name, position: i<11?'xi':'bench'})),
-        gameweek:  gw,
-        formation: '4-3-3',
-        bank:      parseFloat(document.getElementById('bank-input').value)||0,
-      })
-    });
-    const json = await res.json();
-    if(!json.ok) throw new Error(json.error);
-    alert(`✓ Squad saved! ${json.saved} players stored for GW${json.gameweek}`);
-  } catch(e){
-    alert('Error saving squad: '+e.message);
-  }
-}
-
-// ── SYNC FROM FPL ──
-async function syncFromFPL(){
-  const btn = document.getElementById('sync-btn-txt');
-  btn.textContent='Syncing from FPL...';
-  try{
-    const res  = await fetch(`${API}/api/sync/all`);
-    const json = await res.json();
-    if(!json.ok) throw new Error(json.error);
-    btn.textContent='✓ Synced! Reload to see updated squad';
-    setTimeout(()=>btn.textContent='↻ Auto-sync from FPL (post-GW)',3000);
-  } catch(e){
-    btn.textContent='Sync failed: '+e.message;
-    setTimeout(()=>btn.textContent='↻ Auto-sync from FPL (post-GW)',3000);
-  }
-}
-
-// ── ESCAPE TO CLOSE MODAL ──
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     document.getElementById('player-modal').style.display='none';
-    document.getElementById('briefing-modal').style.display='none';
+    document.getElementById('brief-modal').style.display='none';
+    document.getElementById('player-ctx-menu').style.display='none';
   }
 });
 
-// ── DAILY BRIEFING ──
-async function loadDailyBriefing(){
-  const modal = document.getElementById('briefing-modal');
-  modal.style.display='block';
-  document.getElementById('brief-loading').style.display='block';
-  document.getElementById('brief-content').style.display='none';
-  document.getElementById('daily-brief-btn').textContent='Loading...';
-
+// ── INIT ──
+(async function init(){
+  await loadPlayers();
+  await loadSavedSquad();
+  // Fetch deadline from health check
   try{
-    const res  = await fetch(`${API}/api/daily-briefing`);
-    const json = await res.json();
-    if(!json.ok) throw new Error(json.error);
-
-    document.getElementById('brief-meta').textContent =
-      `GW${json.gameweek} · Deadline in ${json.deadline} · ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}`;
-
-    // Injury alerts
-    const injuries = json.injuries||[];
-    document.getElementById('brief-injuries').innerHTML = injuries.map(i=>`
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18);border-radius:8px;font-size:11px;margin-bottom:6px">
-        <div style="width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0"></div>
-        <span><strong style="color:#fca5a5">${i.name} ${i.chance!=null?i.chance+'%':''}</strong>${i.news?' — '+i.news:''}</span>
-      </div>`).join('');
-
-    document.getElementById('brief-text').textContent = json.briefing;
-    document.getElementById('brief-loading').style.display='none';
-    document.getElementById('brief-content').style.display='block';
-  } catch(e){
-    document.getElementById('brief-loading').textContent='Error: '+e.message;
-  }
-  document.getElementById('daily-brief-btn').textContent='Get Daily Briefing';
-}
-
-// ── LOAD SAVED SQUAD ──
-async function loadSavedSquad(){
-  try{
-    const res  = await fetch(`${API}/api/history/latest-squad`);
-    const json = await res.json();
-    if(!json.ok||!json.squad||!json.squad.xi) throw new Error('No saved squad found');
-
-    const saved = json.squad;
-    // Reconstruct squad display from saved data
-    document.getElementById('squad-empty').style.display='none';
-    document.getElementById('squad-stats').style.display='grid';
-    document.getElementById('s-val').textContent   = '£'+(saved.total_value||'?')+'m';
-    document.getElementById('s-bank').textContent  = '£'+(saved.bank||'?')+'m in bank';
-    document.getElementById('s-cap').textContent   = saved.captain||'?';
-    document.getElementById('s-xpts').textContent  = saved.avg_xpts||'?';
-    document.getElementById('s-fdr').textContent   = saved.avg_fdr||'?';
-
-    // Show briefing
-    if(saved.briefing){
-      document.getElementById('briefing-content').innerHTML =
-        `<div class="briefing-text">${saved.briefing}</div>`;
+    const res=await fetch(`${API}/api/health`);
+    const json=await res.json();
+    if(json.gameweek){
+      document.getElementById('nav-gw').textContent='GW'+json.gameweek;
+      document.getElementById('ai-gw-badge').textContent='GW'+json.gameweek;
     }
-
-    // Restore pitch from saved XI
-    if(saved.xi && saved.xi.length){
-      const parts = (saved.formation||'4-3-3').split('-');
-      const n_def=parseInt(parts[0]),n_mid=parseInt(parts[1]),n_fwd=parseInt(parts[2]);
-      const gk  = saved.xi.filter(p=>p.pos==='GK');
-      const def = saved.xi.filter(p=>p.pos==='DEF');
-      const mid = saved.xi.filter(p=>p.pos==='MID');
-      const fwd = saved.xi.filter(p=>p.pos==='FWD');
-
-      function savedChip(p){
-        const isCap = p.name===saved.captain;
-        const isVC  = p.name===saved.vice_captain;
-        return `<div class="pchip" onclick="openPlayer(${p.id||0},'${p.name}')">
-          <div class="pshirt" style="${getShirtStyle(p.team,p.pos)};width:44px;height:44px;font-size:11px;border-radius:10px;position:relative">
-            ${p.gw_type==='DGW'?'<span class="dgw-tag">2x</span>':''}
-            ${isCap?'<span class="cap-badge">C</span>':''}
-            ${isVC&&!isCap?'<span class="vc-badge">V</span>':''}
-            ${getInitials(p.name)}
-          </div>
-          <div class="pname">${p.name}</div>
-          <div class="pprice">£${p.price}m</div>
-        </div>`;
-      }
-
-      const row = ps=>`<div class="p-row">${ps.map(savedChip).join('')}</div>`;
-      document.getElementById('pitch-surface').innerHTML = row(gk)+row(def)+row(mid)+row(fwd);
-      document.getElementById('bench-row').innerHTML = (saved.bench||[]).map(p=>{
-        return `<div class="pchip"><div class="pshirt" style="${getShirtStyle(p.team,p.pos)};width:36px;height:36px;font-size:9px;border-radius:8px">${getInitials(p.name)}</div><div class="pname">${p.name}</div></div>`;
-      }).join('');
-      document.getElementById('pitch-formation').textContent = (saved.formation||'4-3-3')+' · Saved Squad';
-      document.getElementById('pitch-section').style.display='block';
-      document.getElementById('squad-stats-panel').style.display='block';
+    if(json.deadline){
+      const d=new Date(json.deadline);
+      document.getElementById('nav-deadline').textContent='Deadline: '+d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     }
-
-    alert('✓ Loaded your saved GW'+saved.gameweek+' squad');
-  } catch(e){
-    alert('No saved squad found. Generate a squad first.');
-  }
-}
+  } catch(e){}
+})();
 </script>
 </body>
 </html>
