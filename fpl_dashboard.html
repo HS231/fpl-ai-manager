@@ -975,7 +975,7 @@ function renderMySquad(){
   // Render XI slots
   const xiEl = document.getElementById('xi-slots');
   if(!myXI.length){
-    xiEl.innerHTML='<div id="xi-drop-zone" style="font-size:11px;color:var(--muted);padding:16px;text-align:center;border:2px dashed var(--border);border-radius:8px;margin:4px 0" ondragover="event.preventDefault();this.style.borderColor='var(--purple-l)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="onDropSection(event,'xi');this.style.borderColor='var(--border)'">Search and add your starting 11 above<br><span style="font-size:10px;opacity:0.6">or drag bench players here</span></div>';
+    xiEl.innerHTML=`<div id="xi-drop-zone" style="font-size:11px;color:var(--muted);padding:16px;text-align:center;border:2px dashed var(--border);border-radius:8px;margin:4px 0" ondragover="event.preventDefault();this.style.borderColor='var(--purple-l)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="onDropSection(event,'xi');this.style.borderColor='var(--border)'">Search and add your starting 11 above<br><span style="font-size:10px;opacity:0.6">or drag bench players here</span></div>`;
   } else {
     const sorted = [...myXI].sort((a,b)=>posO[a.pos]-posO[b.pos]);
     xiEl.innerHTML = `<div id="xi-drop-zone" style="min-height:4px;margin-bottom:2px;border-radius:4px;transition:all 0.1s" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onDropSection(event,'xi');this.classList.remove('drag-over')"></div>` +
@@ -1011,7 +1011,7 @@ function renderMySquad(){
   // Render bench slots
   const benchEl = document.getElementById('bench-slots');
   if(!myBench.length){
-    benchEl.innerHTML='<div id="bench-drop-zone" style="font-size:11px;color:var(--muted);padding:16px;text-align:center;border:2px dashed var(--border);border-radius:8px;margin:4px 0" ondragover="event.preventDefault();this.style.borderColor='var(--amber)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="onDropSection(event,'bench');this.style.borderColor='var(--border)'">Search and add bench players above<br><span style="font-size:10px;opacity:0.6">or drag XI players here</span></div>';
+    benchEl.innerHTML=`<div id="bench-drop-zone" style="font-size:11px;color:var(--muted);padding:16px;text-align:center;border:2px dashed var(--border);border-radius:8px;margin:4px 0" ondragover="event.preventDefault();this.style.borderColor='var(--amber)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="onDropSection(event,'bench');this.style.borderColor='var(--border)'">Search and add bench players above<br><span style="font-size:10px;opacity:0.6">or drag XI players here</span></div>`;
   } else {
     benchEl.innerHTML = `<div id="bench-drop-zone" style="min-height:4px;margin-bottom:2px;border-radius:4px;transition:all 0.1s" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onDropSection(event,'bench');this.classList.remove('drag-over')"></div>` +
     myBench.map(p=>`
