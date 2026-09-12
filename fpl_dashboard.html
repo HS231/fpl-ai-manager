@@ -183,6 +183,8 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14
 .slot-badge.vc{background:rgba(124,92,191,0.15);color:var(--purple-l)}
 .slot-rm{color:var(--red);font-size:11px;cursor:pointer;opacity:0.6;padding:2px 4px}
 .slot-rm:hover{opacity:1}
+.player-slot.drag-over{background:rgba(124,92,191,0.15);border-color:var(--purple-l)!important;transform:scale(1.01)}
+#xi-drop-zone.drag-over,#bench-drop-zone.drag-over{height:8px;background:var(--purple-l);border-radius:4px}
 .save-squad-btn{width:100%;background:var(--purple);color:#fff;border:none;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--body);margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px}
 .sync-btn{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--green);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--body);margin-top:6px;display:flex;align-items:center;justify-content:center;gap:6px}
 .squad-entry-right{display:flex;flex-direction:column;gap:14px}
@@ -886,22 +888,111 @@ function setMyFormation(btn,f){
 }
 
 // ── RENDER MY SQUAD ──
+// ── DRAG AND DROP ──
+let dragName = null;
+let dragFrom = null; // 'xi' or 'bench'
+
+function onDragStart(e, name, section){
+  dragName = name;
+  dragFrom = section;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.style.opacity = '0.4';
+}
+function onDragEnd(e){
+  e.currentTarget.style.opacity = '1';
+  document.querySelectorAll('.player-slot').forEach(el=>el.classList.remove('drag-over'));
+}
+function onDragOver(e, name, section){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  // Highlight drop target
+  document.querySelectorAll('.player-slot').forEach(el=>el.classList.remove('drag-over'));
+  e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e){ e.currentTarget.classList.remove('drag-over'); }
+function onDrop(e, targetName, targetSection){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if(!dragName || dragName === targetName) return;
+
+  // Same section — reorder
+  if(dragFrom === targetSection){
+    const arr = dragFrom === 'xi' ? myXI : myBench;
+    const fromIdx = arr.findIndex(p=>p.name===dragName);
+    const toIdx   = arr.findIndex(p=>p.name===targetName);
+    if(fromIdx===-1||toIdx===-1) return;
+    const [moved] = arr.splice(fromIdx,1);
+    arr.splice(toIdx,0,moved);
+  } else {
+    // Cross section — swap players
+    const fromArr = dragFrom==='xi' ? myXI : myBench;
+    const toArr   = dragFrom==='xi' ? myBench : myXI;
+    const fromIdx = fromArr.findIndex(p=>p.name===dragName);
+    const toIdx   = toArr.findIndex(p=>p.name===targetName);
+    if(fromIdx===-1||toIdx===-1) return;
+    // Swap
+    const fromPlayer = fromArr[fromIdx];
+    const toPlayer   = toArr[toIdx];
+    fromArr[fromIdx] = toPlayer;
+    toArr[toIdx]     = fromPlayer;
+    // Fix captain if moved to bench
+    if(dragFrom==='xi'){
+      if(myCaptain===dragName) myCaptain=toPlayer.name;
+      if(myVC===dragName) myVC=toPlayer.name;
+    }
+  }
+  dragName=null; dragFrom=null;
+  renderMySquad();
+}
+
+// Drop onto section header (move to end)
+function onDropSection(e, targetSection){
+  e.preventDefault();
+  document.getElementById(targetSection+'-drop-zone').classList.remove('drag-over');
+  if(!dragName||dragFrom===targetSection) return;
+  const fromArr = dragFrom==='xi' ? myXI : myBench;
+  const toArr   = targetSection==='xi' ? myXI : myBench;
+  if(targetSection==='xi'&&myXI.length>=11){ alert('XI is full'); return; }
+  if(targetSection==='bench'&&myBench.length>=4){ alert('Bench is full'); return; }
+  const idx = fromArr.findIndex(p=>p.name===dragName);
+  if(idx===-1) return;
+  const [moved] = fromArr.splice(idx,1);
+  toArr.push(moved);
+  if(dragFrom==='xi'){
+    if(myCaptain===dragName) myCaptain=myXI[0]?.name||null;
+    if(myVC===dragName) myVC=myXI[1]?.name||null;
+  }
+  dragName=null; dragFrom=null;
+  renderMySquad();
+}
+
 function renderMySquad(){
   document.getElementById('xi-count').textContent = myXI.length;
   document.getElementById('bench-count').textContent = myBench.length;
 
+  const posO = {GK:0,DEF:1,MID:2,FWD:3};
+
   // Render XI slots
   const xiEl = document.getElementById('xi-slots');
   if(!myXI.length){
-    xiEl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:10px;text-align:center">Search and add your starting 11 above</div>';
+    xiEl.innerHTML='<div id="xi-drop-zone" style="font-size:11px;color:var(--muted);padding:16px;text-align:center;border:2px dashed var(--border);border-radius:8px;margin:4px 0" ondragover="event.preventDefault();this.style.borderColor='var(--purple-l)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="onDropSection(event,'xi');this.style.borderColor='var(--border)'">Search and add your starting 11 above<br><span style="font-size:10px;opacity:0.6">or drag bench players here</span></div>';
   } else {
-    const posO = {GK:0,DEF:1,MID:2,FWD:3};
     const sorted = [...myXI].sort((a,b)=>posO[a.pos]-posO[b.pos]);
-    xiEl.innerHTML = sorted.map(p=>{
+    xiEl.innerHTML = `<div id="xi-drop-zone" style="min-height:4px;margin-bottom:2px;border-radius:4px;transition:all 0.1s" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onDropSection(event,'xi');this.classList.remove('drag-over')"></div>` +
+    sorted.map(p=>{
       const isCap = p.name===myCaptain;
       const isVC  = p.name===myVC;
-      return `<div class="player-slot ${isCap?'cap':isVC?'vc':''}" oncontextmenu="showCtx(event,'${p.name}','xi');return false">
+      return `<div class="player-slot ${isCap?'cap':isVC?'vc':''}"
+        draggable="true"
+        ondragstart="onDragStart(event,'${p.name}','xi')"
+        ondragend="onDragEnd(event)"
+        ondragover="onDragOver(event,'${p.name}','xi')"
+        ondragleave="onDragLeave(event)"
+        ondrop="onDrop(event,'${p.name}','xi')"
+        oncontextmenu="showCtx(event,'${p.name}','xi');return false"
+        style="cursor:grab">
         <div class="slot-left">
+          <div style="font-size:12px;color:var(--muted);margin-right:4px;cursor:grab">☰</div>
           <div class="slot-pos" style="background:${POS_COLORS[p.pos]||'#333'}">${p.pos}</div>
           <div>
             <div class="slot-name">${p.name}</div>
@@ -911,7 +1002,7 @@ function renderMySquad(){
         <div class="slot-right">
           ${isCap?'<span class="slot-badge cap">C</span>':''}
           ${isVC&&!isCap?'<span class="slot-badge vc">VC</span>':''}
-          <span class="slot-rm" onclick="removeFromXI('${p.name}')">✕</span>
+          <span class="slot-rm" onclick="removeFromXI('${p.name}')" style="cursor:pointer">✕</span>
         </div>
       </div>`;
     }).join('');
@@ -920,11 +1011,21 @@ function renderMySquad(){
   // Render bench slots
   const benchEl = document.getElementById('bench-slots');
   if(!myBench.length){
-    benchEl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:10px;text-align:center">Search and add your 4 bench players above</div>';
+    benchEl.innerHTML='<div id="bench-drop-zone" style="font-size:11px;color:var(--muted);padding:16px;text-align:center;border:2px dashed var(--border);border-radius:8px;margin:4px 0" ondragover="event.preventDefault();this.style.borderColor='var(--amber)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="onDropSection(event,'bench');this.style.borderColor='var(--border)'">Search and add bench players above<br><span style="font-size:10px;opacity:0.6">or drag XI players here</span></div>';
   } else {
-    benchEl.innerHTML = myBench.map(p=>`
-      <div class="player-slot" oncontextmenu="showCtx(event,'${p.name}','bench');return false">
+    benchEl.innerHTML = `<div id="bench-drop-zone" style="min-height:4px;margin-bottom:2px;border-radius:4px;transition:all 0.1s" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onDropSection(event,'bench');this.classList.remove('drag-over')"></div>` +
+    myBench.map(p=>`
+      <div class="player-slot"
+        draggable="true"
+        ondragstart="onDragStart(event,'${p.name}','bench')"
+        ondragend="onDragEnd(event)"
+        ondragover="onDragOver(event,'${p.name}','bench')"
+        ondragleave="onDragLeave(event)"
+        ondrop="onDrop(event,'${p.name}','bench')"
+        oncontextmenu="showCtx(event,'${p.name}','bench');return false"
+        style="cursor:grab">
         <div class="slot-left">
+          <div style="font-size:12px;color:var(--muted);margin-right:4px;cursor:grab">☰</div>
           <div class="slot-pos" style="background:${POS_COLORS[p.pos]||'#333'}">${p.pos}</div>
           <div>
             <div class="slot-name">${p.name}</div>
@@ -932,7 +1033,7 @@ function renderMySquad(){
           </div>
         </div>
         <div class="slot-right">
-          <span class="slot-rm" onclick="removeFromBench('${p.name}')">✕</span>
+          <span class="slot-rm" onclick="removeFromBench('${p.name}')" style="cursor:pointer">✕</span>
         </div>
       </div>`).join('');
   }
