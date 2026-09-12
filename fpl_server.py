@@ -3471,6 +3471,48 @@ def build_manager_context(user_id: str = "hartej") -> str:
     chips_used = sb_get("chips", {"user_id": f"eq.{user_id}", "order": "gameweek.asc"})
     chips_str  = ", ".join([f"{c['chip']} (GW{c['gameweek']})" for c in chips_used]) or "None used yet"
 
+    # Transfer momentum — top movers this GW
+    all_els = boot["elements"]
+    risers  = sorted(
+        [e for e in all_els if e.get("transfers_in_event",0) > 10000],
+        key=lambda x: x.get("transfers_in_event",0), reverse=True
+    )[:8]
+    fallers = sorted(
+        [e for e in all_els if e.get("transfers_out_event",0) > 10000],
+        key=lambda x: x.get("transfers_out_event",0), reverse=True
+    )[:8]
+
+    risers_str = " | ".join([
+        f"{e['web_name']} ({team_map.get(e['team'],'?')},{pos_map.get(e['element_type'],'?')}) +{e['transfers_in_event']//1000}k"
+        for e in risers
+    ]) or "None"
+
+    fallers_str = " | ".join([
+        f"{e['web_name']} ({team_map.get(e['team'],'?')}) -{e['transfers_out_event']//1000}k"
+        for e in fallers
+    ]) or "None"
+
+    # Top form players this GW
+    top_form = sorted(
+        [e for e in all_els if float(e.get("form") or 0) > 4 and e.get("status") not in ("u","i","s")],
+        key=lambda x: float(x.get("form") or 0), reverse=True
+    )[:8]
+    form_str = " | ".join([
+        f"{e['web_name']} ({team_map.get(e['team'],'?')},{pos_map.get(e['element_type'],'?')}) form:{e['form']} xPts:{e.get('ep_next',0)}"
+        for e in top_form
+    ]) or "None"
+
+    # Price changes this GW
+    price_rises  = [e for e in all_els if (e.get("cost_change_event") or 0) > 0]
+    price_falls  = [e for e in all_els if (e.get("cost_change_event") or 0) < 0]
+    price_str    = ""
+    if price_rises:
+        price_str += "Risen: " + ", ".join([f"{e['web_name']} +£{e['cost_change_event']/10}m" for e in price_rises[:5]])
+    if price_falls:
+        price_str += " | Fallen: " + ", ".join([f"{e['web_name']} -£{abs(e['cost_change_event'])/10}m" for e in price_falls[:5]])
+    if not price_str:
+        price_str = "No price changes this GW yet"
+
     context = f"""=== HARTEJ'S FPL PROFILE ===
 Team ID: 7757121 | Season: 2026/27
 Current GW: {gw_id} | Deadline: {hours_left} hours away
@@ -3491,6 +3533,18 @@ Total points: {total} | Overall rank: {rank:,}
 === CHIPS USED ===
 {chips_str}
 Chips remaining: Wildcard x2, Free Hit x2, Bench Boost x2, Triple Captain x2 (minus used above)
+
+=== GW{gw_id} TRANSFER MOMENTUM (most transferred IN this GW) ===
+{risers_str}
+
+=== GW{gw_id} MOST TRANSFERRED OUT ===
+{fallers_str}
+
+=== TOP FORM PLAYERS RIGHT NOW ===
+{form_str}
+
+=== PRICE CHANGES THIS GW ===
+{price_str}
 """
     return context, gw_id, hours_left, injury_flags
 
