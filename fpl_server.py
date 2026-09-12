@@ -3311,6 +3311,292 @@ Be direct, opinionated, specific. Plain prose only, no bullet points."""
     }}
 
 
+# ════════════════════════════════════════════════════════════
+#  LINEUP OPTIMIZER
+#  Best XI, formation and captain from current 15 players
+# ════════════════════════════════════════════════════════════
+
+def optimize_lineup(players: list, dgw_schedule: dict, gw_id: int) -> dict:
+    """
+    Given 15 players, find the best:
+    - Formation (from standard FPL formations)
+    - Starting XI
+    - Captain and VC
+    Returns the optimal lineup with xPts gain vs current setup.
+    """
+    FORMATIONS = [
+        (1,4,3,3),(1,4,4,2),(1,4,5,1),(1,3,5,2),(1,3,4,3),(1,5,3,2),(1,5,4,1)
+    ]
+    pos_map = {'GK':[],'DEF':[],'MID':[],'FWD':[]}
+    for p in players:
+        pos_map[p['pos']].append(p)
+
+    best_score = -1
+    best_result = None
+
+    for gk_n, def_n, mid_n, fwd_n in FORMATIONS:
+        # Check we have enough players
+        if len(pos_map['GK']) < gk_n: continue
+        if len(pos_map['DEF']) < def_n: continue
+        if len(pos_map['MID']) < mid_n: continue
+        if len(pos_map['FWD']) < fwd_n: continue
+
+        # Pick best by xpts for each position
+        gk  = sorted(pos_map['GK'],  key=lambda x: x.get('xpts',0), reverse=True)[:gk_n]
+        def_ = sorted(pos_map['DEF'], key=lambda x: x.get('xpts',0), reverse=True)[:def_n]
+        mid = sorted(pos_map['MID'],  key=lambda x: x.get('xpts',0), reverse=True)[:mid_n]
+        fwd = sorted(pos_map['FWD'],  key=lambda x: x.get('xpts',0), reverse=True)[:fwd_n]
+
+        xi    = gk + def_ + mid + fwd
+        score = sum(p.get('xpts',0) for p in xi)
+
+        if score > best_score:
+            best_score = score
+            # Best captain — highest xpts, fully fit, prefer home
+            eligible = [p for p in xi if not p.get('is_doubtful') and (p.get('chance') or 100) >= 75]
+            cap = max(eligible or xi, key=lambda x: x.get('xpts',0)+(1.5 if x.get('next_home') else 0))
+            vc  = max([p for p in xi if p['name']!=cap['name']], key=lambda x: x.get('xpts',0))
+            best_result = {
+                'formation': f"{def_n}-{mid_n}-{fwd_n}",
+                'xi':        [p['name'] for p in xi],
+                'captain':   cap['name'],
+                'vc':        vc['name'],
+                'total_xpts': round(score, 2),
+                'xi_players': xi,
+            }
+
+    return best_result or {}
+
+
+# ════════════════════════════════════════════════════════════
+#  AI MANAGER CHAT
+# ════════════════════════════════════════════════════════════
+
+def build_manager_context(user_id: str = "hartej") -> str:
+    """
+    Builds the full context string for the AI Manager.
+    Includes squad, performance history, fixtures, injuries, chips.
+    """
+    boot     = cached_get(BOOTSTRAP_URL)
+    fixtures = cached_get(FIXTURES_URL)
+    team_map = {t["id"]: t["short_name"] for t in boot["teams"]}
+    el_map   = {el["id"]: el for el in boot["elements"]}
+    pos_map  = {1:"GK",2:"DEF",3:"MID",4:"FWD"}
+
+    # Current GW
+    from datetime import timezone
+    now        = datetime.now(timezone.utc)
+    future_gws = [e for e in boot["events"]
+                  if e.get("deadline_time") and
+                  datetime.fromisoformat(e["deadline_time"].replace("Z","+00:00")) > now]
+    active_gw  = future_gws[0] if future_gws else None
+    gw_id      = active_gw["id"] if active_gw else 1
+    deadline   = active_gw["deadline_time"] if active_gw else None
+    hours_left = ""
+    if deadline:
+        dl_dt      = datetime.fromisoformat(deadline.replace("Z","+00:00"))
+        hours_left = round((dl_dt - now).total_seconds() / 3600, 1)
+
+    # Saved squad
+    saved = get_latest_squad(user_id)
+    xi    = saved.get("xi", [])
+    bench = saved.get("bench", [])
+    cap   = saved.get("captain", {})
+    vc    = saved.get("vice_captain", {})
+
+    # Enrich squad with live FPL data
+    squad_details = []
+    injury_flags  = []
+    all_15        = xi + bench
+
+    dgw_schedule = detect_dgw_bgw(fixtures, boot["teams"])
+
+    for p in all_15:
+        el = next((e for e in boot["elements"] if e["web_name"] == p.get("name")), None)
+        if not el:
+            continue
+        team     = team_map.get(el["team"], "?")
+        gw_entry = dgw_schedule.get(el["team"], {}).get(gw_id, {})
+        is_xi    = p in xi
+
+        # Next fixture
+        fix_str = " + ".join([
+            f"{opp}({'H' if h else 'A'}) FDR{fdr}"
+            for opp, h, fdr in zip(
+                gw_entry.get("opponents",[]),
+                gw_entry.get("is_home",[]),
+                gw_entry.get("fdr",[])
+            )
+        ]) or "No fixture (BGW)"
+
+        status = el.get("status","a")
+        chance = el.get("chance_of_playing_next_round")
+        news   = el.get("news","")
+
+        if status == "d" or (chance is not None and chance < 100):
+            injury_flags.append(f"{p['name']} ({chance}% — {news})")
+
+        is_cap = p.get("name") == (cap.get("name") if isinstance(cap,dict) else cap)
+        is_vc  = p.get("name") == (vc.get("name") if isinstance(vc,dict) else vc)
+
+        squad_details.append(
+            f"{'XI' if is_xi else 'BENCH'} | {p['name']} ({team},{pos_map.get(el.get('element_type'),'?')}) "
+            f"£{el['now_cost']/10}m | form {el.get('form',0)} | xPts {el.get('ep_next',0)} | "
+            f"GW{gw_id}: {fix_str} | {gw_entry.get('type','normal')}"
+            f"{' | CAPTAIN' if is_cap else ''}{' | VC' if is_vc else ''}"
+            f"{f' | DOUBT {chance}%' if chance and chance < 100 else ''}"
+        )
+
+    # GW history
+    gw_hist = get_gw_history(user_id)
+    hist_str = ""
+    if gw_hist:
+        hist_str = " | ".join([
+            f"GW{h['gameweek']}: {h['gw_points']}pts (rank {h['rank']:,})"
+            for h in gw_hist[-5:]
+        ])
+        latest = gw_hist[-1]
+        total  = latest.get("total_points",0)
+        rank   = latest.get("rank",0)
+    else:
+        hist_str = "No GW history yet"
+        total    = 0
+        rank     = 0
+
+    # Transfer history
+    transfers = get_transfer_history(user_id, limit=5)
+    trans_str = " | ".join([f"GW{t['gameweek']}: {t['player_out']} → {t['player_in']}" for t in transfers]) or "None recorded"
+
+    # Chips used
+    chips_used = sb_get("chips", {"user_id": f"eq.{user_id}", "order": "gameweek.asc"})
+    chips_str  = ", ".join([f"{c['chip']} (GW{c['gameweek']})" for c in chips_used]) or "None used yet"
+
+    context = f"""=== HARTEJ'S FPL PROFILE ===
+Team ID: 7757121 | Season: 2026/27
+Current GW: {gw_id} | Deadline: {hours_left} hours away
+Total points: {total} | Overall rank: {rank:,}
+
+=== HIS SQUAD (15 players) ===
+{chr(10).join(squad_details)}
+
+=== INJURY CONCERNS IN HIS SQUAD ===
+{', '.join(injury_flags) if injury_flags else 'None'}
+
+=== RECENT GW PERFORMANCE ===
+{hist_str}
+
+=== RECENT TRANSFERS ===
+{trans_str}
+
+=== CHIPS USED ===
+{chips_str}
+Chips remaining: Wildcard x2, Free Hit x2, Bench Boost x2, Triple Captain x2 (minus used above)
+"""
+    return context, gw_id, hours_left, injury_flags
+
+
+@app.route("/api/chat", methods=["POST"])
+def ai_chat():
+    """
+    Conversational AI Manager endpoint.
+    Receives message history + user message.
+    Returns Claude's response with full squad context.
+    """
+    try:
+        body       = request.get_json()
+        user_msg   = body.get("message", "")
+        history    = body.get("history", [])  # [{role, content}, ...]
+        user_id    = body.get("user_id", "hartej")
+
+        context, gw_id, hours_left, injuries = build_manager_context(user_id)
+
+        system_prompt = f"""You are Hartej's personal FPL AI Manager for the 2026/27 season. You are having a casual, conversational chat with him — like a knowledgeable mate who follows FPL obsessively.
+
+CRITICAL RULES:
+- Talk like a real person, not a report generator. Short sentences. Natural language. Use "mate", "honestly", "look", "I think", "in my opinion"
+- Be direct and opinionated. Don't hedge everything. If you think he should sell someone, say it clearly
+- Remember the conversation — reference what was said earlier
+- Lead with the most important thing, don't bury it
+- If he doesn't need a transfer, say so. If optimization within his squad is better than a transfer, lead with that
+- Always consider: bench order, formation change, captain swap BEFORE suggesting a transfer
+- You know current FPL news as of your training — reference real situations where relevant
+- Keep responses concise. 3-5 sentences max unless he asks for more detail
+- Never use bullet points or headers in chat. Just flowing conversation
+- Don't start every message with "Hey Hartej" — vary your openings
+
+HERE IS HARTEJ'S COMPLETE SQUAD AND PERFORMANCE DATA:
+{context}
+
+IMPORTANT CONTEXT:
+- GW{gw_id} deadline is {hours_left} hours away
+- Injuries in his squad: {', '.join([i.split('(')[0].strip() for i in injuries]) if injuries else 'none'}
+- Always check if a bench swap or formation change solves the problem before recommending a transfer"""
+
+        # Build messages for Claude
+        messages = []
+        for h in history[-10:]:  # Keep last 10 exchanges for context
+            messages.append({"role": h["role"], "content": h["content"]})
+        messages.append({"role": "user", "content": user_msg})
+
+        resp = req.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"Content-Type": "application/json",
+                     "x-api-key": cfg.ANTHROPIC_API_KEY,
+                     "anthropic-version": "2023-06-01"},
+            json={"model": "claude-sonnet-4-6",
+                  "max_tokens": 400,
+                  "system": system_prompt,
+                  "messages": messages},
+            timeout=30,
+        )
+        reply = resp.json()["content"][0]["text"]
+        return jsonify({"ok": True, "reply": reply})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/chat/opener")
+def chat_opener():
+    """
+    Generates the opening message when user loads the app.
+    Proactive — AI manager leads with the most important thing today.
+    """
+    try:
+        user_id = request.args.get("user_id", "hartej")
+        context, gw_id, hours_left, injuries = build_manager_context(user_id)
+
+        prompt = f"""You are Hartej's personal FPL AI Manager. Generate his opening greeting when he opens the app today.
+
+HIS DATA:
+{context}
+
+Write a short, punchy opening message (3-4 sentences max). Lead with the single most important thing he needs to know or do right now. Could be:
+- An injury concern in his squad that needs action
+- A formation/bench change that would improve his XI for free
+- A captain change recommendation  
+- Deadline urgency if it's close
+- A positive note if everything looks good
+
+Sound like a knowledgeable mate who's already done the homework. Casual, direct, conversational. No bullet points. No "Good morning". Just dive straight in."""
+
+        resp = req.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"Content-Type": "application/json",
+                     "x-api-key": cfg.ANTHROPIC_API_KEY,
+                     "anthropic-version": "2023-06-01"},
+            json={"model": "claude-sonnet-4-6",
+                  "max_tokens": 200,
+                  "messages": [{"role": "user", "content": prompt}]},
+            timeout=20,
+        )
+        opener = resp.json()["content"][0]["text"]
+        return jsonify({"ok": True, "opener": opener, "gameweek": gw_id, "hours_left": hours_left, "injuries": injuries})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 if __name__ == "__main__":
     print("=" * 55)
     print("  FPL AI Manager — Backend Server")
